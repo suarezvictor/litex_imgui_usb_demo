@@ -3,13 +3,36 @@
 //   This software is dual-licensed to the public domain and under the following
 //   license: you are granted a perpetual, irrevocable license to copy, modify,
 //   publish, and distribute this file as you see fit.
-#include "imgui_sw.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <vector>
+#include "imgui_sw.h"
+#include "imgui.h"
+extern "C" {
+#include "lite_fb.h"
+}
 
-#include <imgui/imgui.h>
+#include <math.h>
+#include <stdio.h>
+
+namespace std {
+   template <class T> inline T min(T x, T y) {
+      return x<y?x:y;
+   }
+
+   template <class T> inline T max(T x, T y) {
+      return x>y?x:y;
+   }
+#ifndef LEARNFPGA_LITEX
+   inline float floor(float x) {
+      return floorf(x);
+   }
+#endif   
+   template <class T> inline void swap(T& x, T&y) {
+      T tmp = x;
+      x = y;
+      y = tmp;
+   }
+   
+}
 
 namespace imgui_sw {
 namespace {
@@ -121,6 +144,11 @@ bool operator!=(const ImVec2& a, const ImVec2& b)
 	return a.x != b.x || a.y != b.y;
 }
 
+bool operator==(const ImVec2& a, const ImVec2& b)
+{
+	return a.x == b.x && a.y == b.y;
+}
+   
 ImVec4 operator*(const float f, const ImVec4& v)
 {
 	return ImVec4{f * v.x, f * v.y, f * v.z, f * v.w};
@@ -235,6 +263,24 @@ void paint_uniform_rectangle(
 
 	stats->uniform_rectangle_pixels += (max_x_i - min_x_i) * (max_y_i - min_y_i);
 
+        // [BL] no transparency -> fast fillrect 
+	if(color.a == 255) {
+	   uint32_t  c = color.toUint32();
+	   fb_fillrect(min_x_i, min_y_i, max_x_i-1, max_y_i-1, c);
+	   /*
+	   uint32_t* p_line = target.pixels + min_y_i*target.width + min_x_i;
+	   for (int y = min_y_i; y < max_y_i; ++y) {
+	      uint32_t* p = p_line;
+	      for (int x = min_x_i; x < max_x_i; ++x) {
+		 *p = c;
+		 ++p;
+	      }
+	      p_line += target.width;
+	   }
+	   */ 
+	   return;
+	}
+      
 	// We often blend the same colors over and over again, so optimize for this (saves 25% total cpu):
 	uint32_t last_target_pixel = target.pixels[min_y_i * target.width + min_x_i];
 	uint32_t last_output = blend(ColorInt(last_target_pixel), color).toUint32();
@@ -282,6 +328,12 @@ void paint_uniform_textured_rectangle(
 	int max_x_i = static_cast<int>(max_x_f + 1.0f);
 	int max_y_i = static_cast<int>(max_y_f + 1.0f);
 
+        // [BL]
+        if(min_x_i > max_x_i) std::swap(min_x_i, max_x_i);
+        if(min_y_i > max_y_i) std::swap(min_y_i, max_y_i);
+        if(max_x_i == min_x_i) ++max_x_i; 
+        if(max_y_i == min_y_i) ++max_y_i; 
+   
 	// Clip against render target:
 	min_x_i = std::max(min_x_i, 0);
 	min_y_i = std::max(min_y_i, 0);
@@ -290,6 +342,27 @@ void paint_uniform_textured_rectangle(
 
 	stats->font_pixels += (max_x_i - min_x_i) * (max_y_i - min_y_i);
 
+        // [BL] optimization if single uv texture coord, lookup texture
+	// color and do uniform fillrect
+        if(min_v.uv == max_v.uv) {
+	   const uint8_t texel = sample_texture(texture, min_v.uv);
+	   if(texel == 0) { return; }
+	   uint32_t  c = min_v.col;
+	   fb_fillrect(min_x_i, min_y_i, max_x_i-1,max_y_i-1,c); 
+	   /*
+	   uint32_t* p_line = target.pixels + min_y_i*target.width + min_x_i;
+	   for (int y = min_y_i; y < max_y_i; ++y) {
+	      uint32_t* p = p_line;
+	      for (int x = min_x_i; x < max_x_i; ++x) {
+		 *p = c;
+		 ++p;
+	      }
+	      p_line += target.width;
+	   }
+	   */ 
+	   return;
+	}
+   
 	const auto topleft = ImVec2(min_x_i + 0.5f * target.scale.x,
 	                            min_y_i + 0.5f * target.scale.y);
 
@@ -516,9 +589,9 @@ void paint_draw_cmd(
 	assert(texture);
 
 	// ImGui uses the first pixel for "white".
-	const ImVec2 white_uv = ImVec2(0.5f / texture->width, 0.5f / texture->height);
+        const ImVec2 white_uv = ImVec2(0.5f / texture->width, 0.5f / texture->height);
 
-	for (int i = 0; i + 3 <= pcmd.ElemCount; ) {
+	for (unsigned int i = 0; i + 3 <= pcmd.ElemCount; ) {
 		const ImDrawVert& v0 = vertices[idx_buffer[i + 0]];
 		const ImDrawVert& v1 = vertices[idx_buffer[i + 1]];
 		const ImDrawVert& v2 = vertices[idx_buffer[i + 2]];
@@ -543,17 +616,17 @@ void paint_draw_cmd(
 					v0.col == v2.col &&
 					v0.col == v3.col;
 
-				const bool has_texture =
+			        const bool has_texture =
 					v0.uv != white_uv ||
 					v1.uv != white_uv ||
 					v2.uv != white_uv ||
 					v3.uv != white_uv;
 
-				if (has_uniform_color && has_texture)
+				if (has_uniform_color && has_texture) // HERE
 				{
-					paint_uniform_textured_rectangle(target, *texture, pcmd.ClipRect, v0, v2, stats);
-					i += 6;
-					continue;
+				   paint_uniform_textured_rectangle(target, *texture, pcmd.ClipRect, v0, v2, stats);
+				   i += 6;
+				   continue;
 				}
 			}
 		}
@@ -682,7 +755,7 @@ void bind_imgui_painting()
 	uint8_t* tex_data;
 	int font_width, font_height;
 	io.Fonts->GetTexDataAsAlpha8(&tex_data, &font_width, &font_height);
-	const auto texture = new Texture{tex_data, font_width, font_height};
+        const auto texture = new Texture{tex_data, font_width, font_height};
 	io.Fonts->TexID = texture;
 }
 
@@ -724,10 +797,32 @@ void show_stats()
 	ImGui::Text("textured_triangle_pixels:           %7d",   s_stats.textured_triangle_pixels);
 	ImGui::Text("gradient_triangle_pixels:           %7d",   s_stats.gradient_triangle_pixels);
 	ImGui::Text("font_pixels:                        %7d",   s_stats.font_pixels);
+   
+/*   
 	ImGui::Text("uniform_rectangle_pixels:           %7.0f", s_stats.uniform_rectangle_pixels);
 	ImGui::Text("textured_rectangle_pixels:          %7.0f", s_stats.textured_rectangle_pixels);
 	ImGui::Text("gradient_rectangle_pixels:          %7.0f", s_stats.gradient_rectangle_pixels);
 	ImGui::Text("gradient_textured_rectangle_pixels: %7.0f", s_stats.gradient_textured_rectangle_pixels);
+*/
+   
+	ImGui::Text("uniform_rectangle_pixels:           %7d", int(s_stats.uniform_rectangle_pixels));
+	ImGui::Text("textured_rectangle_pixels:          %7d", int(s_stats.textured_rectangle_pixels));
+	ImGui::Text("gradient_rectangle_pixels:          %7d", int(s_stats.gradient_rectangle_pixels));
+	ImGui::Text("gradient_textured_rectangle_pixels: %7d", int(s_stats.gradient_textured_rectangle_pixels));
+
 }
 
+void show_stats_in_terminal()
+{
+	printf("uniform_triangle_pixels:            %7d\n",   s_stats.uniform_triangle_pixels);
+	printf("textured_triangle_pixels:           %7d\n",   s_stats.textured_triangle_pixels);
+	printf("gradient_triangle_pixels:           %7d\n",   s_stats.gradient_triangle_pixels);
+	printf("font_pixels:                        %7d\n",   s_stats.font_pixels);
+	printf("uniform_rectangle_pixels:           %7d\n", int(s_stats.uniform_rectangle_pixels));
+	printf("textured_rectangle_pixels:          %7d\n", int(s_stats.textured_rectangle_pixels));
+	printf("gradient_rectangle_pixels:          %7d\n", int(s_stats.gradient_rectangle_pixels));
+	printf("gradient_textured_rectangle_pixels: %7d\n", int(s_stats.gradient_textured_rectangle_pixels));
+}
+   
+   
 } // namespace imgui_sw

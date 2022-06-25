@@ -12,7 +12,7 @@
 //   * It does not support painting with any other texture than the default font texture.
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace imgui_sw {
 
@@ -46,4 +46,6 @@ bool show_options(SwOptions* io_options);
 /// Show rendering stats in an ImGui window if you want to.
 void show_stats();
 
+void show_stats_in_terminal();
+   
 } // namespace imgui_sw
