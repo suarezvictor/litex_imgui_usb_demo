@@ -347,8 +347,8 @@ class BaseSoC(SoCCore):
             self.comb += self.dma_reader.source.connect(self.dma_writer.sink) #Connect Reader to Writer
 
 # Build --------------------------------------------------------------------------------------------
-# (DVI=False, 640x480@60Hz) ./digilent_arty.VIDEO.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6     --cpu-type=vexriscv --cpu-variant=full --build
-# (DVI=True,  800x600@50Hz) ./digilent_arty.VIDEO.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
+# (DVI=False, 640x480@60Hz) ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6     --cpu-type=vexriscv --cpu-variant=full --build
+# (DVI=True,  800x600@50Hz) ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Arty A7")
