@@ -7,6 +7,8 @@
 #include <sys/time.h>
 #include <string.h>
 
+#include "usb_host.h"
+#ifdef ESP32
 #include "driver/gpio.h"
 #include "sdkconfig.h"
 #include "driver/timer.h"
@@ -14,9 +16,55 @@
 #include "soc/rtc.h"
 #include "math.h"
 #include "esp_heap_caps.h"
+#include "esp32-hal.h"
 
-#include "hal/cpu_hal.h"
-#include "hal/gpio_hal.h"
+inline uint32_t hal_get_cpu_mhz(void)
+{
+  rtc_cpu_freq_config_t  out_config;
+  rtc_clk_cpu_freq_get_config(&out_config);
+  return out_config.freq_mhz;
+}
+
+#ifdef TIMER_INTERVAL0_SEC
+typedef void (*timer_isr_t)(void *para);
+
+void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t timer_isr)
+{
+  timer_config_t config;
+  config.divider     = TIMER_DIVIDER;
+  config.counter_dir = TIMER_COUNT_UP;
+  config.counter_en  = TIMER_PAUSE;
+  config.alarm_en    = TIMER_ALARM_EN;
+  config.auto_reload = (timer_autoreload_t) 1; // fix for ¬invalid conversion from 'int' to 'timer_autoreload_t'¬ thanks rudi ;-)
+
+  timer_init(TIMER_GROUP_0, timer_num, &config);
+  timer_set_counter_value(TIMER_GROUP_0, timer_num, 0x00000000ULL);
+  timer_set_alarm_value(TIMER_GROUP_0, timer_num, alarm_value);
+  timer_enable_intr(TIMER_GROUP_0, timer_num);
+  timer_isr_register(TIMER_GROUP_0, timer_num, timer_isr, (void *) timer_num, ESP_INTR_FLAG_IRAM, NULL);
+  timer_start(TIMER_GROUP_0, timer_num);
+}
+#endif
+
+#define cpu_hal_get_cycle_count xthal_get_ccount
+#else
+#ifdef __IMXRT1062__
+#include <Arduino.h>
+#else
+#include <generated/csr.h>
+#endif
+#endif //ESP32
+
+#ifdef USE_TUSB_FIFO
+hal_queue_handle_t hal_queue_create(size_t n, size_t sz, void *buffer)
+{
+  tu_fifo_t f;
+  memset(&f, 0, sizeof(f));
+  tu_fifo_config(&f, buffer, n, sz, true);
+  return f;
+}
+#endif
+
 
 /*******************************
 *    warning!!!: any copy of this code or his part must include this:
@@ -34,9 +82,6 @@
      - Arduino IDE compliance (mostly code regression to esp-idf 3.x)
      - Added callbacks (data and device detection)
 \*/
-
-
-#include "usb_host.h"
 
 // Arduino IDE complains about volatile at init, but we don't care
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
@@ -95,28 +140,33 @@ static uint32_t _getCycleCount32()
 }
 static uint8_t _getCycleCount8d8(void)
 {
-  uint32_t ccount = cpu_hal_get_cycle_count();
-  return ccount>>3;
+  uint32_t ccount = _getCycleCount32();
+  return ccount>>TIME_FACTOR_BITS;
 }
 
 
-#define SE_J  { *snd[1][0] = (1 << DM_PIN);*snd[1][1] = (1 << DP_PIN); }
-#define SE_0  { *snd[2][0] = (1 << DM_PIN);*snd[2][1] = (1 << DP_PIN); }
+#if 0//def ESP32
+
+//#define SE_J  { *snd[1][0] = (1 << DM_PIN);*snd[1][1] = (1 << DP_PIN); } //clear / set
+//#define SE_0  { *snd[2][0] = (1 << DM_PIN);*snd[2][1] = (1 << DP_PIN); } //clear / clear
 
 #if CONFIG_IDF_TARGET_ESP32
-  #define SET_I { PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[DP_PIN]); PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[DM_PIN]); GPIO.enable_w1tc = (1 << DP_PIN) | (1 << DM_PIN);  }
-  #define SET_O { GPIO.enable_w1ts = (1 << DP_PIN) | (1 << DM_PIN);  PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[DP_PIN]); PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[DM_PIN]);  }
+  #define SET_I(dp, dm) { PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[dp]); PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[dm]); GPIO.enable_w1tc = (1 << (dp)) | (1 << (dm));  }
+  #define SET_O(dp, dm) { GPIO.enable_w1ts = (1 << (dp)) | (1 << (dm));  PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[dp]); PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[dm]);  }
   #define READ_BOTH_PINS (((GPIO.in&RD_MASK)<<8)>>RD_SHIFT)
   uint32_t * snd[4][2]  =
   {
-    {&GPIO.out_w1tc,&GPIO.out_w1ts},
-    {&GPIO.out_w1ts,&GPIO.out_w1tc},
-    {&GPIO.out_w1tc,&GPIO.out_w1tc},
-    {&GPIO.out_w1tc,&GPIO.out_w1tc}
+    {&GPIO.out_w1tc,&GPIO.out_w1ts}, //clear / set
+    {&GPIO.out_w1ts,&GPIO.out_w1tc}, //set   / clear
+    {&GPIO.out_w1tc,&GPIO.out_w1tc}, //clear / clear
+    {&GPIO.out_w1tc,&GPIO.out_w1tc}  //clear / clear
   } ;
 #else
-  #define SET_I { PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[DP_PIN]); PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[DM_PIN]);  gpio_ll_output_disable(&GPIO,DM_PIN); gpio_ll_output_disable(&GPIO,DP_PIN);}
-  #define SET_O { GPIO.enable_w1ts.val = (1 << DP_PIN) | (1 << DM_PIN);  PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[DP_PIN]); PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[DM_PIN]);  }
+  //gpio_ll_output_disable: hw->enable_w1tc = (0x1 << gpio_num);
+  //GPIO_PIN_MUX_REG[0]: IO_MUX_GPIO0_REG
+  //PIN_INPUT_ENABLE(PIN_NAME): SET_PERI_REG_MASK(PIN_NAME,FUN_IE)
+  #define SET_I(dp, dm) { PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[dp]); PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[dm]);  gpio_ll_output_disable(&GPIO,dm); gpio_ll_output_disable(&GPIO,dp);}
+  #define SET_O(dp, dm) { GPIO.enable_w1ts.val = (1 << (dp)) | (1 << (dm));  PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[dp]); PIN_INPUT_DISABLE(GPIO_PIN_MUX_REG[dm]);  }
   #define READ_BOTH_PINS (((GPIO.in.val&RD_MASK)<<8)>>RD_SHIFT)
   uint32_t * snd[4][2]  =
   {
@@ -125,6 +175,33 @@ static uint8_t _getCycleCount8d8(void)
     {&GPIO.out_w1tc.val,&GPIO.out_w1tc.val},
     {&GPIO.out_w1tc.val,&GPIO.out_w1tc.val}
   } ;
+
+#endif
+#endif
+#if defined(__IMXRT1062__) || defined(ESP32)
+#warning assumes DM_PIN > DP_PIN
+#endif
+#ifndef READ_BOTH_PINS
+#define READ_BOTH_PINS ((hal_gpio_read(DM_PIN) ? 1<<(8+DM_PIN - DP_PIN) : 0) | (hal_gpio_read(DP_PIN) ? 0x100 : 0))
+#endif
+#ifndef SET_I
+#define SET_I(dp, dm)  { hal_gpio_set_direction(dp, 0); hal_gpio_set_direction(dm, 0); }
+#endif
+#ifndef SET_O
+#define SET_O(dp, dm)  { hal_gpio_set_direction(dp, 1); hal_gpio_set_direction(dm, 1); }
+#endif
+#ifndef SE_J 
+#define SE_J { hal_gpio_set_level(DM_PIN, 0); hal_gpio_set_level(DP_PIN, 1); } //clear / set
+#endif
+#ifndef SE_0 
+#define SE_0 { hal_gpio_set_level(DM_PIN, 0); hal_gpio_set_level(DP_PIN, 0); } //clear / clear
+#endif
+
+
+#ifndef hal_set_differential_gpio_value
+#define hal_set_differential_gpio_value(dp, dm,v) \
+{ hal_gpio_set_level(dm, v & 1); /*v==0 => clear, v==1 => set,   v == 2 => clear*/ \
+    hal_gpio_set_level(dp, v == 0); } /*v==0 => set  , v==1 => clear, v == 2 => clear */
 #endif
 
 //must be setup ech time with setPins
@@ -155,7 +232,7 @@ volatile uint8_t decoded_receive_buffer_tail;
 uint8_t decoded_receive_buffer[DEF_BUFF_SIZE];
 // end temporary used insize lowlevel
 
-
+#ifdef ESP32
 void (*delay_pntA)() = NULL;
 #define cpuDelay(x) {(*delay_pntA)();}
 
@@ -202,10 +279,11 @@ void (*delay_pntA)() = NULL;
 #endif
 
 
-
-void setDelay(uint8_t ticks)
+void setDelay(uint16_t ticks)
 {
   uint8_t* pntS;
+  if(ticks > MAX_DELAY_CODE_SIZE)
+    ticks = MAX_DELAY_CODE_SIZE;
   // it can't execute but can read & write
   if(!delay_pntA) {
     pntS = SDELAYMALLOC( MAX_DELAY_CODE_SIZE );
@@ -222,6 +300,21 @@ void setDelay(uint8_t ticks)
     while(1) { vTaskDelay(1); }
   }
 }
+#else //not ESP32
+
+void setDelay(uint16_t ticks) {}
+void cpuDelay(uint16_t x)
+{
+ uint32_t t0 = cpu_hal_get_cycle_count();
+ for(;;)
+ {
+   uint32_t t1 =  cpu_hal_get_cycle_count();
+   t1 -= t0;
+   if(t1 > x)
+     break;
+  }
+}
+#endif
 
 
 
@@ -327,6 +420,7 @@ typedef struct
 } sUsbContStruct;
 
 sUsbContStruct * current;
+void usb_disable_current(void) { current->isValid = 0; }
 
 void parseImmed(sUsbContStruct * pcurrent)
 {
@@ -334,8 +428,8 @@ void parseImmed(sUsbContStruct * pcurrent)
   static sIntfDesc     sIntf;
   static HIDDescriptor hid[4];
   static sEPDesc       epd;
-  static int           cfgCount   = 0;
-  static int           sIntfCount   = 0;
+  /*static int           cfgCount   = 0;
+  static int           sIntfCount   = 0;*/
   static int           hidCount   = 0;
   int                  pos = 0;
   #define STDCLASS     0x00
@@ -376,14 +470,14 @@ uint32_t sndA[4]  = {0,0,0,0};
 
 
 
-void restart()
+void restart(void)
 {
   transmit_NRZI_buffer_cnt = 0;
 }
 
 
 
-void decoded_receive_buffer_clear()
+void decoded_receive_buffer_clear(void)
 {
   decoded_receive_buffer_tail = decoded_receive_buffer_head;
 }
@@ -398,21 +492,21 @@ void decoded_receive_buffer_put(uint8_t val)
 
 
 
-uint8_t decoded_receive_buffer_get()
+uint8_t decoded_receive_buffer_get(void)
 {
   return decoded_receive_buffer[decoded_receive_buffer_tail++];
 }
 
 
 
-uint8_t decoded_receive_buffer_size()
+uint8_t decoded_receive_buffer_size(void)
 {
   return (uint8_t )(decoded_receive_buffer_head-decoded_receive_buffer_tail);
 }
 
 
 
-uint8_t cal5()
+uint8_t cal5(void)
 {
   uint8_t   crcb;
   uint8_t   rem;
@@ -433,7 +527,7 @@ uint8_t cal5()
 
 
 
-uint32_t cal16()
+uint32_t cal16(void)
 {
   uint32_t   crcb;
   uint32_t   rem;
@@ -479,7 +573,7 @@ void pu_LSB(uint16_t msg,int N)
 
 
 
-void repack()
+void repack(void)
 {
   int last = USB_LS_J;
   int cntOnes = 0;
@@ -553,8 +647,10 @@ uint16_t debug_buff[0x100];
 #endif
 
 
+void (*onLedBlinkCB)(int on_off) = NULL;
+#define NOTIFY() if(onLedBlinkCB) onLedBlinkCB(1)
 
-int parse_received_NRZI_buffer()
+int parse_received_NRZI_buffer(void)
 {
 
   if(!received_NRZI_buffer_bytesCnt) return 0;
@@ -620,6 +716,7 @@ int parse_received_NRZI_buffer()
           #ifdef DEBUG_ALL
             debug_buff[rcnt++] = current_res;
           #endif
+    //NOTIFY();
           decoded_receive_buffer_put(current_res);
           if(start>8) {
             for(int bt =0;bt<8;bt++) {
@@ -654,10 +751,10 @@ int parse_received_NRZI_buffer()
 
 
 //#define WR_SIMULTA
-void sendOnly()
+void sendOnly(void)
 {
   uint8_t k;
-  SET_O;
+  SET_O(DP_PIN, DM_PIN);
   #ifdef WR_SIMULTA
     uint32_t out_base = GPIO.out;
     sndA[0] = (out_base | DP) &~DM;
@@ -665,26 +762,32 @@ void sendOnly()
     sndA[2] = (out_base )&~(DP | DM);
     sndA[3] = out_base | (DM | DP);
   #endif
-  for(k=0;k<transmit_NRZI_buffer_cnt;k++) {
-    //usb_transmit_delay(10);
+//#define TIMING_PREC 4 //add precision
+#ifndef TIMING_PREC
+  for(k=0;k<transmit_NRZI_buffer_cnt;++k) {
     cpuDelay(TRANSMIT_TIME_DELAY);
-    #ifdef WR_SIMULTA
-      GPIO.out = sndA[transmit_NRZI_buffer[k]];
-    #else
-      *snd[transmit_NRZI_buffer[k]][0] = DM_PIN_M;
-      *snd[transmit_NRZI_buffer[k]][1] = DP_PIN_M;
-    #endif
+    hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k]);
   }
+#else
+  uint32_t t1 = cpu_hal_get_cycle_count();
+  uint32_t td = 0;
+  for(k=0;;) {
+    int32_t t = cpu_hal_get_cycle_count() - t1;
+    if(t < td/TIMING_PREC) continue;
+    hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k++]);
+    td += TRANSMIT_TIME_DELAY;
+    if(k>=transmit_NRZI_buffer_cnt) break;
+  }
+#endif
   restart();
-  SET_I;
+  SET_I(DP_PIN, DM_PIN);
 }
 
-
-void sendRecieveNParse()
+void sendRecieveNParse(void)
 {
   register uint32_t R3;
   register uint16_t *STORE = received_NRZI_buffer;
-  //__disable_irq();
+  //hal_disable_irq(); //this is already in IRQ handler
   sendOnly();
   register uint32_t R4;// = READ_BOTH_PINS;
 
@@ -701,13 +804,16 @@ START:
       if(R4!=R3)  goto START;
     }
   }
-  //__enable_irq();
+  //hal_enable_irq();
   received_NRZI_buffer_bytesCnt = STORE-received_NRZI_buffer;
+
+  //early activation for debugging
+  //if(received_NRZI_buffer_bytesCnt > 13) NOTIFY();
 }
 
 
 
-int sendRecieve()
+int sendRecieve(void)
 {
   sendRecieveNParse();
   return parse_received_NRZI_buffer();
@@ -715,7 +821,7 @@ int sendRecieve()
 
 
 
-void SOF()
+void SOF(void)
 {
   if(1) {
     repack();
@@ -766,7 +872,7 @@ uint8_t ACK_BUFF[0x20];
 int ACK_BUFF_CNT = 0;
 
 
-void ACK()
+void ACK(void)
 {
   transmit_NRZI_buffer_cnt =0;
   if(ACK_BUFF_CNT==0) {
@@ -783,14 +889,15 @@ void ACK()
 }
 
 
-void timerCallBack()
+void timerCallBack(void)
 {
   decoded_receive_buffer_clear();
 
   if(current->cb_Cmd==CB_CHECK) {
-    SET_I;
+    SET_I(DP_PIN, DM_PIN);
     current->wires_last_state = READ_BOTH_PINS>>8;
     if(current->wires_last_state==M_ONE) {
+      //NOTIFY(); //passes here
       // low speed
     } else if(current->wires_last_state==P_ONE) {
       //high speed
@@ -803,7 +910,7 @@ void timerCallBack()
   } else if (current->cb_Cmd==CB_RESET) {
     SOF();
     sendRecieveNParse();
-    SET_O;
+    SET_O(DP_PIN, DM_PIN);
     SE_0;
     current->cmdTimeOut  =   31;
     current->cb_Cmd         =   CB_WAIT0;
@@ -831,9 +938,9 @@ void timerCallBack()
       SOF();
       SOF();
     #else
-      SET_O;
-      SE_J;
-      SET_I;
+      SET_O(DP_PIN, DM_PIN);
+      SE_J; //this seems to prepare output pins value for the next use
+      SET_I(DP_PIN, DM_PIN);
       current->cmdTimeOut  =    2;
       current->cb_Cmd  = CB_WAIT1;
     #endif
@@ -1123,15 +1230,13 @@ void set_ondetect_cb( ondetectcb_t cb )
 }
 
 
-void (*onLedBlinkCB)(int on_off) = NULL;
-
 void set_onled_blink_cb( onledblinkcb_t cb )
 {
   onLedBlinkCB = cb;
 }
 
 
-void fsm_Mashine()
+void fsm_Mashine(void)
 {
   if(!current->bComplete) return;
   current->bComplete = 0;
@@ -1142,7 +1247,10 @@ void fsm_Mashine()
     current->fsm_state   = 1;
   }
   if(current->fsm_state == 1) {
+    //NOTIFY(); //passes here
     if(current->wires_last_state==M_ONE) { // if(1)
+        //NOTIFY(); //passes here
+
       current->cmdTimeOut = 100+current->selfNum*73;
       current->cb_Cmd      = CB_WAIT0;
       current->fsm_state   = 2;
@@ -1151,9 +1259,11 @@ void fsm_Mashine()
       current->cb_Cmd      = CB_CHECK;
     }
   } else if(current->fsm_state==2) {
+    //NOTIFY(); //passes here
     current->cb_Cmd       = CB_RESET;
     current->fsm_state    = 3;
   } else if(current->fsm_state==3) {
+    //NOTIFY(); //passes here
     current->cb_Cmd       = CB_POWER;
     #ifdef TEST
       current->fsm_state    =  3;
@@ -1164,10 +1274,12 @@ void fsm_Mashine()
     Request(T_SETUP,ZERO_USB_ADDRESS,0b0000,T_DATA0,0x80,0x6,0x0100,0x0000,0x0012,0x0012);
     current->fsm_state    = 5;
   } else if(current->fsm_state==5) {
+    //NOTIFY(); //passes here
     if(current->acc_decoded_resp_counter==0x12) {
       memcpy(&current->desc,current->acc_decoded_resp,0x12);
       current->ufPrintDesc |= 1;
     } else {
+    //NOTIFY(); //passes here
       if(current->numb_reps_errors_allowed<=0) {
         current->fsm_state    =  0;
         return;
@@ -1304,19 +1416,18 @@ int checkPins(int dp,int dm)
   return 1;
 }
 
-
-int64_t get_system_time_us()
+/*
+int64_t get_system_time_us(void)
 {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (tv.tv_sec * 1000000LL + (tv.tv_usec ));
+  return 1000000ull*cpu_hal_get_cycle_count()/F_CPU;
+  //return micros(); 
 }
-
+*/
 
 float testDelay6(float freq_MHz)
 {
   // 6 bits must take 4.0 uSec
-  #define SEND_BITS  120
+  #define SEND_BITS 120
   #define REPS 40
   float res = 1;
   transmit_NRZI_buffer_cnt = 0;
@@ -1327,22 +1438,44 @@ float testDelay6(float freq_MHz)
   }
 
 
-  int64_t stimb = get_system_time_us();
+  hal_disable_irq();
+  uint64_t stimb = cpu_hal_get_cycle_count64();
+  //uint32_t stimb = get_system_time_us();
   for(int k=0;k<REPS;k++) {
     sendOnly();
     transmit_NRZI_buffer_cnt = SEND_BITS;
   }
-
-  uint32_t stim =  get_system_time_us()- stimb;
-  freq_MHz = 1.0f;
+  uint64_t stim =  cpu_hal_get_cycle_count64()- stimb;
+  //uint32_t stim =  get_system_time_us()- stimb;
+  //freq_MHz = 1.0f;
+  hal_enable_irq();
+  
   res = stim*6.0/freq_MHz/(SEND_BITS*REPS);
-  printf("%d bits in %f uSec %f MHz  6 ticks in %f uS\n",(SEND_BITS*REPS),stim/(float)freq_MHz,(SEND_BITS*REPS)*freq_MHz/stim,stim*6.0/freq_MHz/(SEND_BITS*REPS));
+  printf("%d bits in %f uSec %f MHz  6 ticks in %f uS\n",(SEND_BITS*REPS),(double)stim/(double)freq_MHz,(SEND_BITS*REPS)*(double)freq_MHz/(double)stim,(double)stim*(double)6.0/(double)freq_MHz/(double)(SEND_BITS*REPS));
 
   return res;
 }
 
 uint8_t arr[0x200];
 
+#define F_USB_LOWSPEED 1500000
+#define F_TIMING_BIT_ADDPRECISION 8
+void gpio_test(void) //test with improved timing
+{
+    hal_gpio_set_direction(DP_PIN, 1);
+    hal_gpio_set_direction(DM_PIN, 1);
+    uint32_t xt1 = cpu_hal_get_cycle_count();
+    uint8_t b = 0;
+    uint32_t td = 0;
+    for(int i = 0; i <= 6*2;)
+    {
+      int32_t t = cpu_hal_get_cycle_count() - xt1;
+      if(t < td>>F_TIMING_BIT_ADDPRECISION) continue;
+      hal_set_differential_gpio_value(DP_PIN, DM_PIN, b^=1);
+      td += ((F_CPU/1000)*(1<<F_TIMING_BIT_ADDPRECISION))/(F_USB_LOWSPEED/1000);
+      ++i;
+    }
+}
 
 void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
 {
@@ -1369,7 +1502,7 @@ void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
     }
     current->isValid = 0;
     if(checkPins(current->DP,current->DM)) {
-      printf("USB#%d (pins %d %d) is OK!\n", k, current->DP, current->DM );
+      printf("USB#%d (pins %d %d) is OK!\n", k, (int)current->DP, (int)current->DM );
       current->selfNum = k;
       current->flags_new  = 0x0;
       current->flags 		= 0x0;
@@ -1383,62 +1516,70 @@ void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
       current->counterNAck = 0;
       current->counterAck = 0;
       current->epCount = 0;
-      gpio_pad_select_gpio(current->DP);
-      gpio_set_direction(current->DP, GPIO_MODE_OUTPUT);
-      gpio_set_level(current->DP, 0);
-      gpio_set_direction(current->DP, GPIO_MODE_INPUT);
-      gpio_pulldown_en(current->DP);
+      hal_gpio_pad_select_gpio(current->DP);
+      hal_gpio_set_direction(current->DP, GPIO_MODE_OUTPUT);
+      hal_gpio_set_level(current->DP, 0);
+      hal_gpio_set_direction(current->DP, GPIO_MODE_INPUT);
+      hal_gpio_pulldown_en(current->DP);
 
-      gpio_pad_select_gpio(current->DM);
-      gpio_set_direction(current->DM, GPIO_MODE_OUTPUT);
-      gpio_set_level(current->DM, 0);
-      gpio_set_direction(current->DM, GPIO_MODE_INPUT);
-      gpio_pulldown_en(current->DM);
+      hal_gpio_pad_select_gpio(current->DM);
+      hal_gpio_set_direction(current->DM, GPIO_MODE_OUTPUT);
+      hal_gpio_set_level(current->DM, 0);
+      hal_gpio_set_direction(current->DM, GPIO_MODE_INPUT);
+      hal_gpio_pulldown_en(current->DM);
       current->isValid = 1;
 
       // TEST
       setPins(current->DP,current->DM);
+      //gpio_test();
+
       printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
-      SET_O;
+      SET_O(DP_PIN, DM_PIN);
       SE_0;
       SE_J;
       SE_0;
-      SET_I;
+      SET_I(DP_PIN, DM_PIN);
       printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
-      gpio_set_direction(current->DP, GPIO_MODE_OUTPUT);
-      gpio_set_direction(current->DM, GPIO_MODE_OUTPUT);
+      hal_gpio_set_direction(current->DP, GPIO_MODE_OUTPUT);
+      hal_gpio_set_direction(current->DM, GPIO_MODE_OUTPUT);
       printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
-      SET_I;
+      SET_I(DP_PIN, DM_PIN);
       printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
 
       if(!calibrated) {
         //calibrate delay divide 2
         #define DELAY_CORR 2
-        int  uTime = 254;
+        int freq_mhz = hal_get_cpu_mhz();
+#ifdef ESP32        
+        int  uTime = 250;
+#else
+#ifdef __IMXRT1062__
+        int  uTime = freq_mhz*2;
+#ifdef TIMING_PREC
+        uTime *= TIMING_PREC;
+#endif
+#else
+        int  uTime = freq_mhz*8;
+#endif
+#endif
         int  dTime = 0;
-
-        rtc_cpu_freq_config_t  out_config;
-
-        rtc_clk_cpu_freq_get_config(&out_config);
-        printf("cpu freq = %d MHz\n",out_config.freq_mhz);
-
-        TM_OUT = out_config.freq_mhz/2;
-
-        // 8  - func divided clock to 8, 1.5 - MHz USB LS
-        TIME_MULT = (int)(TIME_SCALE/(out_config.freq_mhz/8/1.5)+0.5);
+        printf("cpu freq = %d MHz\n", freq_mhz);
+        TM_OUT = freq_mhz/2;
+        // 8  - func divided clock to 8, 1.5 - MHz USB LS //NOTE: N=8 noy anymore constant, depends on clock frequency
+        TIME_MULT = (int)(TIME_SCALE/(freq_mhz/(1<<TIME_FACTOR_BITS)/1.5)+0.5); //this fixes the timing bug!!
         printf("TIME_MULT = %d \n",TIME_MULT);
 
         int     TRANSMIT_TIME_DELAY_OPT = 0;
         TRANSMIT_TIME_DELAY = TRANSMIT_TIME_DELAY_OPT;
         printf("D=%4d ",TRANSMIT_TIME_DELAY);
         setDelay(TRANSMIT_TIME_DELAY);
-        float  cS_opt = testDelay6(out_config.freq_mhz);
+        float  cS_opt = testDelay6(freq_mhz);
         #define OPT_TIME (4.00f)
-        for(int p=0;p<9;p++) {
+        for(int p=0;p<12;p++) {
           TRANSMIT_TIME_DELAY = (uTime+dTime)/2;
           printf("D=%4d ",TRANSMIT_TIME_DELAY);
           setDelay(TRANSMIT_TIME_DELAY);
-          float cS = testDelay6(out_config.freq_mhz);
+          float cS = testDelay6(freq_mhz);
           if(fabsf(OPT_TIME-cS)<fabsf(OPT_TIME-cS_opt)) {
             cS_opt = cS;
             TRANSMIT_TIME_DELAY_OPT = TRANSMIT_TIME_DELAY;
@@ -1451,13 +1592,15 @@ void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
         }
         TRANSMIT_TIME_DELAY = TRANSMIT_TIME_DELAY_OPT+DELAY_CORR;
         setDelay(TRANSMIT_TIME_DELAY);
-        printf("TRANSMIT_TIME_DELAY = %d time = %f error = %f%% \n",TRANSMIT_TIME_DELAY,cS_opt,(cS_opt-OPT_TIME)/OPT_TIME*100);
+        printf("TRANSMIT_TIME_DELAY = %d time = %f error = %f%% \n",TRANSMIT_TIME_DELAY,(double)cS_opt,(double)(cS_opt-OPT_TIME)/(double)OPT_TIME*(double)100);
       }
     } else {
-      if( current->DP == -1 && current->DM == -1 ) {
-        printf("USB#%d is disabled by user configuration\n", k);
+      if( (int)current->DP == -1 && (int)current->DM == -1 ) {
+#ifndef DEBUG_ALL
+        printf("USB#%d is disabled by user configuration\n", k); //maybe called in interrupt handler for disabling the port
+#endif
       } else {
-        printf("USB#%d (pins %d %d) has errors and will be disabled !\n", k, current->DP, current->DM );
+        printf("USB#%d (pins %d %d) has errors and will be disabled !\n", k, (int)current->DP, (int)current->DM );
       }
     }
   }
@@ -1484,11 +1627,13 @@ uint8_t usbGetFlags(int _usb_num)
 
 
 
-void usb_process()
+void usb_process(void)
 {
+#ifdef ESP32
   #if CONFIG_IDF_TARGET_ESP32C3 || defined ESP32C3
     cpu_ll_enable_cycle_count();
   #endif
+#endif
   for(int k=0;k<NUM_USB;k++) {
     current = &current_usb[k];
     if(current->isValid) {
@@ -1501,7 +1646,7 @@ void usb_process()
 
 
 
-void printState()
+void printState(void)
 {
   static int cntl = 0;
   cntl++;
@@ -1545,12 +1690,12 @@ void printState()
 
   if(pcurrent->ufPrintDesc&4) {
     pcurrent->ufPrintDesc &= ~(uint32_t)4;
-    sCfgDesc lcfg;
-    sIntfDesc sIntf;
     HIDDescriptor hid[4];
+    /*sCfgDesc lcfg;
+    sIntfDesc sIntf;
     sEPDesc epd;
     int cfgCount   = 0;
-    int sIntfCount   = 0;
+    int sIntfCount   = 0;*/
     int hidCount   = 0;
     int pos = 0;
     #define STDCLASS        0x00

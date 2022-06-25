@@ -2,11 +2,7 @@
 #define __USB_SOFT_HOST_HPP_
 
 #ifndef BLINK_GPIO
-  #if CONFIG_IDF_TARGET_ESP32C3 || defined ESP32C3
-    #define BLINK_GPIO 18
-  #else
-    #define BLINK_GPIO 22
-  #endif
+#define BLINK_GPIO LED_BUILTIN
 #endif
 
 
@@ -15,7 +11,7 @@ extern "C" {
   #include "usb_host.h"
 }
 
-static xQueueHandle usb_msg_queue = NULL;
+static hal_queue_handle_t usb_msg_queue;
 
 struct USBMessage
 {
@@ -109,7 +105,9 @@ class USB_SOFT_HOST
     void setUSBMessageCb( onusbmesscb_t onMessageCB );
     static void onUSBMessageDecode(uint8_t src, uint8_t len, uint8_t *data);
     static void (*ticker)();
+#ifndef USBHOST_SINGLE_CORE
     static void TimerTask(void *arg);
+#endif
 };
 
 
@@ -122,8 +120,14 @@ bool USB_SOFT_HOST::init( usb_pins_config_t pconf, ondetectcb_t onDetectCB, prin
   //setMessageReceiver(
   USB_SOFT_HOST::setTaskTicker( onTickCB );
   if( _init( pconf ) ) {
+#ifndef USBHOST_SINGLE_CORE
+#ifdef ESP32
     xTaskCreatePinnedToCore(USB_SOFT_HOST::TimerTask, "USB Soft Host Timer Task", 8192, NULL, priority, NULL, core);
     log_w("USB Soft Host Group timer task is now running on core #%d with priority %d", core, priority);
+#else
+#warning implement timer task
+#endif
+#endif
     return true;
   }
   return false;
@@ -135,37 +139,28 @@ bool USB_SOFT_HOST::_init( usb_pins_config_t pconf )
 {
   if( inited ) return false;
 
-  timer_config_t config;
-  config.divider     = TIMER_DIVIDER;
-  config.counter_dir = TIMER_COUNT_UP;
-  config.counter_en  = TIMER_PAUSE;
-  config.alarm_en    = TIMER_ALARM_EN;
-  config.auto_reload = (timer_autoreload_t) 1; // fix for ¬invalid conversion from 'int' to 'timer_autoreload_t'¬ thanks rudi ;-)
-
-  #if !defined USE_NATIVE_GROUP_TIMERS
-    timer_queue = xQueueCreate( 10, sizeof(timer_event_t) );
-  #endif
 
   setDelay(4);
-
-  usb_msg_queue = xQueueCreate( 10, sizeof(struct USBMessage) );
+  
+  static USBMessage usb_msg_queue_buffer[10];
+  usb_msg_queue = hal_queue_create(sizeof(usb_msg_queue_buffer)/sizeof(usb_msg_queue_buffer[0]), sizeof(USBMessage), usb_msg_queue_buffer);
 
   initStates(
-    (gpio_num_t)pconf.dp0, (gpio_num_t)pconf.dm0,
-    (gpio_num_t)pconf.dp1, (gpio_num_t)pconf.dm1,
-    (gpio_num_t)pconf.dp2, (gpio_num_t)pconf.dm2,
-    (gpio_num_t)pconf.dp3, (gpio_num_t)pconf.dm3
+    (hal_gpio_num_t)pconf.dp0, (hal_gpio_num_t)pconf.dm0,
+    (hal_gpio_num_t)pconf.dp1, (hal_gpio_num_t)pconf.dm1,
+    (hal_gpio_num_t)pconf.dp2, (hal_gpio_num_t)pconf.dm2,
+    (hal_gpio_num_t)pconf.dp3, (hal_gpio_num_t)pconf.dm3
   );
-
-  gpio_pad_select_gpio((gpio_num_t)BLINK_GPIO);
-  //gpio_set_direction((gpio_num_t)BLINK_GPIO, GPIO_MODE_OUTPUT);
-
-  timer_init(TIMER_GROUP_0, TIMER_0, &config);
-  timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0x00000000ULL);
-  timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, (double)TIMER_INTERVAL0_SEC * TIMER_SCALE);
-  timer_enable_intr(TIMER_GROUP_0, TIMER_0);
-  timer_isr_register(TIMER_GROUP_0, TIMER_0, timer_group0_isr, (void *) TIMER_0, ESP_INTR_FLAG_IRAM, NULL);
-  timer_start(TIMER_GROUP_0, TIMER_0);
+#ifdef BLINK_GPIO
+  hal_gpio_pad_select_gpio((hal_gpio_num_t)BLINK_GPIO);
+  hal_gpio_set_direction((hal_gpio_num_t)BLINK_GPIO, GPIO_MODE_OUTPUT);
+#endif
+#ifdef TIMER_INTERVAL0_SEC
+  #if !defined USE_NATIVE_GROUP_TIMERS && defined(ESP32)
+  timer_queue = xQueueCreate( 10, sizeof(timer_event_t) );
+  #endif
+  hal_timer_setup(TIMER_0, (uint64_t) ((double)TIMER_INTERVAL0_SEC * TIMER_SCALE), usbhost_timer_cb);
+#endif
 
   inited = true;
 
@@ -216,21 +211,21 @@ void USB_SOFT_HOST::onUSBMessageDecode(uint8_t src, uint8_t len, uint8_t *data)
   for(int k=0;k<msg.len;k++) {
     msg.data[k] = data[k];
   }
-  xQueueSend( usb_msg_queue, ( void * ) &msg,(TickType_t)0 );
+  hal_queue_send( usb_msg_queue, &msg);
 }
 
 
 
 void (*USB_SOFT_HOST::ticker)() = nullptr;
 
-
+/*
 void USB_SOFT_HOST::TimerPause()
 {
   if( !paused ) {
     log_d("Pausing timer");
-    timer_pause(TIMER_GROUP_0, TIMER_0);
+    hal_timer_pause(TIMER_0);
     paused = true;
-    vTaskDelay(1);
+    hal_delay(1);
   } else {
     log_e("Timer already paused!");
   }
@@ -240,27 +235,26 @@ void USB_SOFT_HOST::TimerResume()
 {
   if( paused ) {
     log_d("Resuming timer");
-    timer_start(TIMER_GROUP_0, TIMER_0);
+    hal_timer_start(TIMER_0);
     paused = false;
-    vTaskDelay(1);
+    hal_delay(1);
   } else {
     log_e("Timer already running!");
   }
 }
+*/
 
-
-
+#ifndef USBHOST_SINGLE_CORE
 void USB_SOFT_HOST::TimerTask(void *arg)
 {
   while (1) {
     struct USBMessage msg;
 
-    #if !defined USE_NATIVE_GROUP_TIMERS
+    #if !defined(USE_NATIVE_GROUP_TIMERS) && defined(TIMER_INTERVAL0_SEC)
       timer_event_t evt;
       xQueueReceive(timer_queue, &evt, portMAX_DELAY);
     #endif
-
-    if( xQueueReceive(usb_msg_queue, &msg, 0) ) {
+    if( hal_queue_receive(usb_msg_queue, &msg) ) {
       if( printDataCB ) {
         printDataCB( msg.src/4, 32, msg.data, msg.len );
       }
@@ -268,10 +262,10 @@ void USB_SOFT_HOST::TimerTask(void *arg)
 
     printState();
     if( ticker ) ticker();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    hal_delay(10);
   }
 }
-
+#endif
 
 USB_SOFT_HOST USH;
 
