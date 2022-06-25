@@ -2,9 +2,9 @@
 // License: BSD-2-Clause
 
 //Current command for SoC generation:
-//$ ./digilent_arty.VIDEO.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6 --cpu-variant=full --build
+//$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6 --cpu-variant=full --build
 //for DVI 800x600@50Hz: 
-//$ ./digilent_arty.VIDEO.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
+//$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
 
 //#define DEBUG_ALL
 #define USE_IMGUI
@@ -26,7 +26,7 @@ extern "C" {
 #define DM_P0  12
 
 //#include "usb_host.h"
-#include <ESP32-USBSoftHost.hpp>
+#include "USBHost.hpp"
 
 
 static void my_USB_DetectCB( uint8_t usbNum, void * dev )

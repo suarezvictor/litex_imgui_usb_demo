@@ -400,7 +400,7 @@ static inline void _tu_fifo_correct_read_pointer(tu_fifo_t* f, uint16_t wAbs)
 
 // Works on local copies of w and r
 // Must be protected by mutexes since in case of an overflow read pointer gets modified
-static bool _tu_fifo_peek(tu_fifo_t* f, void * p_buffer, uint16_t wAbs, uint16_t rAbs)
+static bool FAST_CODE _tu_fifo_peek(tu_fifo_t* f, void * p_buffer, uint16_t wAbs, uint16_t rAbs)
 {
   uint16_t cnt = _tu_fifo_count(f, wAbs, rAbs);
 
@@ -424,7 +424,7 @@ static bool _tu_fifo_peek(tu_fifo_t* f, void * p_buffer, uint16_t wAbs, uint16_t
 
 // Works on local copies of w and r
 // Must be protected by mutexes since in case of an overflow read pointer gets modified
-static uint16_t _tu_fifo_peek_n(tu_fifo_t* f, void * p_buffer, uint16_t n, uint16_t wAbs, uint16_t rAbs, tu_fifo_copy_mode_t copy_mode)
+static uint16_t FAST_CODE _tu_fifo_peek_n(tu_fifo_t* f, void * p_buffer, uint16_t n, uint16_t wAbs, uint16_t rAbs, tu_fifo_copy_mode_t copy_mode)
 {
   uint16_t cnt = _tu_fifo_count(f, wAbs, rAbs);
 
@@ -456,7 +456,7 @@ static inline uint16_t _tu_fifo_remaining(tu_fifo_t* f, uint16_t wAbs, uint16_t 
   return f->depth - _tu_fifo_count(f, wAbs, rAbs);
 }
 
-static uint16_t _tu_fifo_write_n(tu_fifo_t* f, const void * data, uint16_t n, tu_fifo_copy_mode_t copy_mode)
+static uint16_t FAST_CODE _tu_fifo_write_n(tu_fifo_t* f, const void * data, uint16_t n, tu_fifo_copy_mode_t copy_mode)
 {
   if ( n == 0 ) return 0;
 
@@ -495,7 +495,7 @@ static uint16_t _tu_fifo_write_n(tu_fifo_t* f, const void * data, uint16_t n, tu
   return n;
 }
 
-static uint16_t _tu_fifo_read_n(tu_fifo_t* f, void * buffer, uint16_t n, tu_fifo_copy_mode_t copy_mode)
+static uint16_t FAST_CODE _tu_fifo_read_n(tu_fifo_t* f, void * buffer, uint16_t n, tu_fifo_copy_mode_t copy_mode)
 {
   _ff_lock(f->mutex_rd);
 
@@ -737,7 +737,7 @@ uint16_t tu_fifo_peek_n(tu_fifo_t* f, void * p_buffer, uint16_t n)
              FIFO will always return TRUE)
  */
 /******************************************************************************/
-bool tu_fifo_write(tu_fifo_t* f, const void * data)
+bool FAST_CODE tu_fifo_write(tu_fifo_t* f, const void * data)
 {
   _ff_lock(f->mutex_wr);
 

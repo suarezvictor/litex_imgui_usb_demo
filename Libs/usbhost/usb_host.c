@@ -51,12 +51,14 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 #ifdef __IMXRT1062__
 #include <Arduino.h>
 #else
+#include "irq.h"
 #include <generated/csr.h>
 #endif
 #endif //ESP32
 
 #ifdef USE_TUSB_FIFO
-hal_queue_handle_t hal_queue_create(size_t n, size_t sz, void *buffer)
+
+hal_queue_handle_t FAST_CODE hal_queue_create(size_t n, size_t sz, void *buffer)
 {
   tu_fifo_t f;
   memset(&f, 0, sizeof(f));
@@ -121,9 +123,9 @@ hal_queue_handle_t hal_queue_create(size_t n, size_t sz, void *buffer)
 
 
 
-int TRANSMIT_TIME_DELAY = 110;  //delay each bit transmit
-int TIME_MULT           = 25;    //received time factor delta clocks* TIME_MULT/TIME_SCALE
-int TM_OUT              = 64;    //receive time out no activity on bus
+int FAST_DATA TRANSMIT_TIME_DELAY = 110;  //delay each bit transmit
+int FAST_DATA TIME_MULT           = 25;    //received time factor delta clocks* TIME_MULT/TIME_SCALE
+int FAST_DATA TM_OUT              = 64;    //receive time out no activity on bus
 #define  TIME_SCALE       1024
 
 //#define TEST
@@ -133,12 +135,38 @@ int TM_OUT              = 64;    //receive time out no activity on bus
   #define TOUT  (TM_OUT)
 #endif
 
-static uint32_t _getCycleCount32()
+
+#if defined(ESP32) || defined(__IMXRT1062__)
+//aproximate scale depending on CPU clock frequency
+#if   F_CPU <   50*1000000
+#define TIME_FACTOR_BITS 0
+#elif F_CPU <  100*1000000
+#define TIME_FACTOR_BITS 1
+#elif F_CPU <  200*1000000
+#define TIME_FACTOR_BITS 2
+#elif F_CPU <  400*1000000
+#define TIME_FACTOR_BITS 3
+#elif F_CPU <  800*1000000
+#define TIME_FACTOR_BITS 4
+#elif F_CPU < 1600*1000000
+#define TIME_FACTOR_BITS 5
+#else
+#define TIME_FACTOR_BITS 6
+#endif
+#else
+#if   F_CPU <   100*1000000
+#define TIME_FACTOR_BITS 2 //vexriscv full 100Mhz (worked: 1, 2, 3, 4)
+#else
+#define TIME_FACTOR_BITS 3 //vexriscv full 166Mhz
+#endif
+#endif
+
+static inline uint32_t _getCycleCount32(void)
 {
   uint32_t ccount = cpu_hal_get_cycle_count();
   return  ccount;
 }
-static uint8_t _getCycleCount8d8(void)
+static inline uint8_t _getCycleCount8d8(void)
 {
   uint32_t ccount = _getCycleCount32();
   return ccount>>TIME_FACTOR_BITS;
@@ -182,7 +210,8 @@ static uint8_t _getCycleCount8d8(void)
 #warning assumes DM_PIN > DP_PIN
 #endif
 #ifndef READ_BOTH_PINS
-#define READ_BOTH_PINS ((hal_gpio_read(DM_PIN) ? 1<<(8+DM_PIN - DP_PIN) : 0) | (hal_gpio_read(DP_PIN) ? 0x100 : 0))
+#error READ_BOTH_PINS is time sensitive! define an optimized way
+//#define READ_BOTH_PINS ((hal_gpio_read(DM_PIN) ? 1<<(8+DM_PIN - DP_PIN) : 0) | (hal_gpio_read(DP_PIN) ? 0x100 : 0))
 #endif
 #ifndef SET_I
 #define SET_I(dp, dm)  { hal_gpio_set_direction(dp, 0); hal_gpio_set_direction(dm, 0); }
@@ -205,31 +234,31 @@ static uint8_t _getCycleCount8d8(void)
 #endif
 
 //must be setup ech time with setPins
-uint32_t DP_PIN;
-uint32_t DM_PIN;
+uint32_t FAST_DATA DP_PIN;
+uint32_t FAST_DATA DM_PIN;
 
-uint32_t DM_PIN_M;
-uint32_t DP_PIN_M;
-uint16_t M_ONE;
-uint16_t P_ONE;
-uint32_t RD_MASK;
-uint32_t RD_SHIFT;
+uint32_t FAST_DATA DM_PIN_M;
+uint32_t FAST_DATA DP_PIN_M;
+uint16_t FAST_DATA M_ONE;
+uint16_t FAST_DATA P_ONE;
+uint32_t FAST_DATA RD_MASK;
+uint32_t FAST_DATA RD_SHIFT;
 //end must be setup ech time with setPins
 
 // temporary used insize lowlevel
-volatile uint8_t received_NRZI_buffer_bytesCnt;
-uint16_t received_NRZI_buffer[DEF_BUFF_SIZE];
+volatile uint8_t FAST_DATA received_NRZI_buffer_bytesCnt;
+uint16_t FAST_DATA received_NRZI_buffer[DEF_BUFF_SIZE];
 
 volatile uint8_t transmit_bits_buffer_store_cnt;
 //uint8_t transmit_bits_buffer_store[DEF_BUFF_SIZE];
-uint8_t* transmit_bits_buffer_store = (uint8_t*)&received_NRZI_buffer[0];
+uint8_t* FAST_DATA transmit_bits_buffer_store = (uint8_t*)&received_NRZI_buffer[0];
 
-volatile uint8_t transmit_NRZI_buffer_cnt;
-uint8_t transmit_NRZI_buffer[DEF_BUFF_SIZE];
+volatile uint8_t FAST_DATA transmit_NRZI_buffer_cnt;
+uint8_t FAST_DATA transmit_NRZI_buffer[DEF_BUFF_SIZE];
 
-volatile uint8_t decoded_receive_buffer_head;
-volatile uint8_t decoded_receive_buffer_tail;
-uint8_t decoded_receive_buffer[DEF_BUFF_SIZE];
+volatile uint8_t FAST_DATA decoded_receive_buffer_head;
+volatile uint8_t FAST_DATA decoded_receive_buffer_tail;
+uint8_t FAST_DATA decoded_receive_buffer[DEF_BUFF_SIZE];
 // end temporary used insize lowlevel
 
 #ifdef ESP32
@@ -303,12 +332,12 @@ void setDelay(uint16_t ticks)
 #else //not ESP32
 
 void setDelay(uint16_t ticks) {}
-void cpuDelay(uint16_t x)
+static inline void cpuDelay(uint16_t x)
 {
- uint32_t t0 = cpu_hal_get_cycle_count();
+ register uint32_t t0 = cpu_hal_get_cycle_count();
  for(;;)
  {
-   uint32_t t1 =  cpu_hal_get_cycle_count();
+   register uint32_t t1 =  cpu_hal_get_cycle_count();
    t1 -= t0;
    if(t1 > x)
      break;
@@ -419,15 +448,15 @@ typedef struct
 
 } sUsbContStruct;
 
-sUsbContStruct * current;
-void usb_disable_current(void) { current->isValid = 0; }
+sUsbContStruct FAST_DATA *current;
+void FAST_CODE usb_disable_current(void) { current->isValid = 0; }
 
-void parseImmed(sUsbContStruct * pcurrent)
+void FAST_CODE parseImmed(sUsbContStruct * pcurrent)
 {
-  static sCfgDesc      cfg;
-  static sIntfDesc     sIntf;
-  static HIDDescriptor hid[4];
-  static sEPDesc       epd;
+  static FAST_DATA sCfgDesc      cfg;
+  static FAST_DATA sIntfDesc     sIntf;
+  static FAST_DATA HIDDescriptor hid[4];
+  static FAST_DATA sEPDesc       epd;
   /*static int           cfgCount   = 0;
   static int           sIntfCount   = 0;*/
   static int           hidCount   = 0;
@@ -465,26 +494,26 @@ void parseImmed(sUsbContStruct * pcurrent)
 }
 
 #ifdef WR_SIMULTA
-uint32_t sndA[4]  = {0,0,0,0};
+uint32_t FAST_DATA sndA[4]  = {0,0,0,0};
 #endif
 
 
 
-void restart(void)
+static inline void restart(void)
 {
   transmit_NRZI_buffer_cnt = 0;
 }
 
 
 
-void decoded_receive_buffer_clear(void)
+static inline void decoded_receive_buffer_clear(void)
 {
   decoded_receive_buffer_tail = decoded_receive_buffer_head;
 }
 
 
 
-void decoded_receive_buffer_put(uint8_t val)
+static inline void decoded_receive_buffer_put(uint8_t val)
 {
   decoded_receive_buffer[decoded_receive_buffer_head] = val;
   decoded_receive_buffer_head++;
@@ -492,21 +521,21 @@ void decoded_receive_buffer_put(uint8_t val)
 
 
 
-uint8_t decoded_receive_buffer_get(void)
+static inline uint8_t decoded_receive_buffer_get(void)
 {
   return decoded_receive_buffer[decoded_receive_buffer_tail++];
 }
 
 
 
-uint8_t decoded_receive_buffer_size(void)
+static inline uint8_t decoded_receive_buffer_size(void)
 {
   return (uint8_t )(decoded_receive_buffer_head-decoded_receive_buffer_tail);
 }
 
 
 
-uint8_t cal5(void)
+uint8_t FAST_CODE cal5(void)
 {
   uint8_t   crcb;
   uint8_t   rem;
@@ -527,7 +556,7 @@ uint8_t cal5(void)
 
 
 
-uint32_t cal16(void)
+uint32_t FAST_CODE cal16(void)
 {
   uint32_t   crcb;
   uint32_t   rem;
@@ -547,15 +576,14 @@ uint32_t cal16(void)
 }
 
 
-
-void seB(int bit)
+static inline void seB(int bit)
 {
   transmit_bits_buffer_store[transmit_bits_buffer_store_cnt++] = bit;
 }
 
 
 
-void pu_MSB(uint16_t msg,int N)
+void FAST_CODE pu_MSB(uint16_t msg,int N)
 {
   for(int k=0;k<N;k++) {
     seB(msg&(1<<(N-1-k))?1:0);
@@ -564,7 +592,7 @@ void pu_MSB(uint16_t msg,int N)
 
 
 
-void pu_LSB(uint16_t msg,int N)
+void FAST_CODE pu_LSB(uint16_t msg,int N)
 {
   for(int k=0;k<N;k++) {
     seB(msg&(1<<(k))?1:0);
@@ -573,7 +601,7 @@ void pu_LSB(uint16_t msg,int N)
 
 
 
-void repack(void)
+void FAST_CODE repack(void)
 {
   int last = USB_LS_J;
   int cntOnes = 0;
@@ -618,7 +646,7 @@ void repack(void)
 
 
 
-uint8_t rev8(uint8_t j)
+uint8_t FAST_CODE rev8(uint8_t j)
 {
   uint8_t res = 0;
   for(int i=0;i<8;i++) {
@@ -630,7 +658,7 @@ uint8_t rev8(uint8_t j)
 
 
 
-uint16_t rev16(uint16_t j)
+uint16_t FAST_CODE rev16(uint16_t j)
 {
   uint16_t res = 0;
   for(int i=0;i<16;i++) {
@@ -647,10 +675,11 @@ uint16_t debug_buff[0x100];
 #endif
 
 
-void (*onLedBlinkCB)(int on_off) = NULL;
+void FAST_DATA (*onLedBlinkCB)(int on_off) = NULL;
 #define NOTIFY() if(onLedBlinkCB) onLedBlinkCB(1)
 
-int parse_received_NRZI_buffer(void)
+
+int FAST_CODE parse_received_NRZI_buffer(void)
 {
 
   if(!received_NRZI_buffer_bytesCnt) return 0;
@@ -687,7 +716,7 @@ int parse_received_NRZI_buffer(void)
       terr+=tm;
     } else {
       //terr = 0;
-      int delta = ((((curr+terr)&0xff))*TIME_MULT+TIME_SCALE/2)/TIME_SCALE;
+      int delta = ((((tm+terr)))*TIME_MULT+TIME_SCALE/2)/TIME_SCALE;
 
       for(int k=0;k<delta;k++) {
         int incc = 1;
@@ -751,9 +780,8 @@ int parse_received_NRZI_buffer(void)
 
 
 //#define WR_SIMULTA
-void sendOnly(void)
+void FAST_CODE sendOnly(void)
 {
-  uint8_t k;
   SET_O(DP_PIN, DM_PIN);
   #ifdef WR_SIMULTA
     uint32_t out_base = GPIO.out;
@@ -762,28 +790,62 @@ void sendOnly(void)
     sndA[2] = (out_base )&~(DP | DM);
     sndA[3] = out_base | (DM | DP);
   #endif
-//#define TIMING_PREC 4 //add precision
+
+#define TIMING_PREC 4 //optional use of optmized bit-output timings, and configure added precision
+  
+  uint8_t bitcount = transmit_NRZI_buffer_cnt;
 #ifndef TIMING_PREC
-  for(k=0;k<transmit_NRZI_buffer_cnt;++k) {
+  uint32_t pin_values[4] = {
+    hal_pin2value(DP_PIN, DM_PIN, 0),
+    hal_pin2value(DP_PIN, DM_PIN, 1),
+    hal_pin2value(DP_PIN, DM_PIN, 2),
+    hal_pin2value(DP_PIN, DM_PIN, 3),
+  };
+  //FIXME: merge with the other GPIO bits
+
+  #pragma GCC unroll 0
+  for(uint8_t k=0; k<bitcount; ++k) {
     cpuDelay(TRANSMIT_TIME_DELAY);
-    hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k]);
+    //profiling for vexriscv, TIMING_PREC=1
+    //nop: 3.36Mhz
+    //hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k]); //2.57Mhz
+    //hal_set_differential_gpio_value(8, 12, 0); //3.24mhz
+    hal_gpio_set_pins_value(pin_values[transmit_NRZI_buffer[k]]); //2.63Mhz
+    /*switch(transmit_NRZI_buffer[k]) //2.66Mhz
+    {
+      case 0: hal_set_differential_gpio_value(, 12, 0); break;
+      case 1: hal_set_differential_gpio_value(8, 12, 1); break;
+      case 2: hal_set_differential_gpio_value(8, 12, 2); break;
+      case 3: hal_set_differential_gpio_value(8, 12, 3); break;
+    }*/
   }
 #else
-  uint32_t t1 = cpu_hal_get_cycle_count();
-  uint32_t td = 0;
-  for(k=0;;) {
-    int32_t t = cpu_hal_get_cycle_count() - t1;
-    if(t < td/TIMING_PREC) continue;
-    hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k++]);
+  #pragma GCC unroll 0
+  for(int k=0, td = 0, tdk=0, t1 = cpu_hal_get_cycle_count(); k<bitcount; ) {
+    if((int)(cpu_hal_get_cycle_count() - t1) < tdk) continue;
+    //profiling for vexriscv, TIMING_PREC=1
+    //nop: 4.59Mhz
+    //hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k]); //3.14mhz
+    //hal_set_differential_gpio_value(8, 12, 0); //4.38mhz
+    hal_set_differential_gpio_value(DP_PIN, DM_PIN, transmit_NRZI_buffer[k]); //3.14mhz
+    //hal_gpio_set_pins_value(pin_values[transmit_NRZI_buffer[k]]); //3.13Mhz
+    /*switch(transmit_NRZI_buffer[k]) //3.08Mhz
+    {
+      case 0: hal_set_differential_gpio_value(8, 12, 0); break;
+      case 1: hal_set_differential_gpio_value(8, 12, 1); break;
+      case 2: hal_set_differential_gpio_value(8, 12, 2); break;
+      case 3: hal_set_differential_gpio_value(8, 12, 3); break;
+    }*/
     td += TRANSMIT_TIME_DELAY;
-    if(k>=transmit_NRZI_buffer_cnt) break;
+    tdk = td/TIMING_PREC;
+    ++k;
   }
 #endif
   restart();
   SET_I(DP_PIN, DM_PIN);
 }
 
-void sendRecieveNParse(void)
+void FAST_CODE sendRecieveNParse(void)
 {
   register uint32_t R3;
   register uint16_t *STORE = received_NRZI_buffer;
@@ -807,13 +869,15 @@ START:
   //hal_enable_irq();
   received_NRZI_buffer_bytesCnt = STORE-received_NRZI_buffer;
 
+#if 0
   //early activation for debugging
-  //if(received_NRZI_buffer_bytesCnt > 13) NOTIFY();
+  if(received_NRZI_buffer_bytesCnt > 1) NOTIFY();
+#endif
 }
 
 
 
-int sendRecieve(void)
+int FAST_CODE sendRecieve(void)
 {
   sendRecieveNParse();
   return parse_received_NRZI_buffer();
@@ -821,7 +885,7 @@ int sendRecieve(void)
 
 
 
-void SOF(void)
+void FAST_CODE SOF(void)
 {
   if(1) {
     repack();
@@ -831,7 +895,7 @@ void SOF(void)
 
 
 
-void pu_Addr(uint8_t cmd,uint8_t addr,uint8_t eop)
+void FAST_CODE pu_Addr(uint8_t cmd,uint8_t addr,uint8_t eop)
 {
   pu_MSB(T_START,8);
   pu_MSB(cmd,8);//setup
@@ -843,7 +907,7 @@ void pu_Addr(uint8_t cmd,uint8_t addr,uint8_t eop)
 
 
 
-void pu_ShortCmd(uint8_t cmd)
+void FAST_CODE pu_ShortCmd(uint8_t cmd)
 {
   pu_MSB(T_START,8);
   pu_MSB(cmd,8);//setup
@@ -853,7 +917,7 @@ void pu_ShortCmd(uint8_t cmd)
 
 
 
-void pu_Cmd(uint8_t cmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen)
+void FAST_CODE pu_Cmd(uint8_t cmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen)
 {
   pu_MSB(T_START,8);
   pu_MSB(cmd,8);//setup
@@ -868,11 +932,10 @@ void pu_Cmd(uint8_t cmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue
 
 
 
-uint8_t ACK_BUFF[0x20];
-int ACK_BUFF_CNT = 0;
+uint8_t FAST_DATA ACK_BUFF[0x20];
+int FAST_DATA ACK_BUFF_CNT = 0;
 
-
-void ACK(void)
+void FAST_CODE ACK(void)
 {
   transmit_NRZI_buffer_cnt =0;
   if(ACK_BUFF_CNT==0) {
@@ -889,7 +952,7 @@ void ACK(void)
 }
 
 
-void timerCallBack(void)
+void FAST_CODE timerCallBack(void)
 {
   decoded_receive_buffer_clear();
 
@@ -1161,7 +1224,7 @@ void timerCallBack(void)
 
 
 
-void Request( uint8_t cmd, uint8_t addr, uint8_t eop, uint8_t dataCmd,uint8_t bmRequestType, uint8_t bmRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLen, uint16_t waitForBytes)
+void FAST_CODE Request( uint8_t cmd, uint8_t addr, uint8_t eop, uint8_t dataCmd,uint8_t bmRequestType, uint8_t bmRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLen, uint16_t waitForBytes)
 {
   current->rq.cmd  = cmd;
   current->rq.addr = addr;
@@ -1181,7 +1244,7 @@ void Request( uint8_t cmd, uint8_t addr, uint8_t eop, uint8_t dataCmd,uint8_t bm
 
 
 
-void RequestSend(uint8_t cmd,   uint8_t addr,uint8_t eop, uint8_t  dataCmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen,uint16_t transmitL1Bytes,uint8_t* data)
+void FAST_CODE RequestSend(uint8_t cmd,   uint8_t addr,uint8_t eop, uint8_t  dataCmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen,uint16_t transmitL1Bytes,uint8_t* data)
 {
   current->rq.cmd  = cmd;
   current->rq.addr = addr;
@@ -1202,7 +1265,7 @@ void RequestSend(uint8_t cmd,   uint8_t addr,uint8_t eop, uint8_t  dataCmd,uint8
 }
 
 
-void RequestIn(uint8_t cmd,   uint8_t addr,uint8_t eop,uint16_t waitForBytes)
+void FAST_CODE RequestIn(uint8_t cmd,   uint8_t addr,uint8_t eop,uint16_t waitForBytes)
 {
   current->rq.cmd  = cmd;
   current->rq.addr = addr;
@@ -1214,15 +1277,15 @@ void RequestIn(uint8_t cmd,   uint8_t addr,uint8_t eop,uint16_t waitForBytes)
 }
 
 
-void (*usbMess)(uint8_t src,uint8_t len,uint8_t *data) = NULL;
+void FAST_DATA (*usbMess)(uint8_t src,uint8_t len,uint8_t *data) = NULL;
 
-void set_usb_mess_cb( onusbmesscb_t onUSBMessCb )
+void FAST_CODE set_usb_mess_cb( onusbmesscb_t onUSBMessCb )
 {
   usbMess = onUSBMessCb;
 }
 
 
-void (*onDetectCB)(uint8_t usbNum, void *device) = NULL;
+void FAST_DATA (*onDetectCB)(uint8_t usbNum, void *device) = NULL;
 
 void set_ondetect_cb( ondetectcb_t cb )
 {
@@ -1230,13 +1293,13 @@ void set_ondetect_cb( ondetectcb_t cb )
 }
 
 
-void set_onled_blink_cb( onledblinkcb_t cb )
+void FAST_CODE set_onled_blink_cb( onledblinkcb_t cb )
 {
   onLedBlinkCB = cb;
 }
 
 
-void fsm_Mashine(void)
+void FAST_CODE fsm_Mashine(void)
 {
   if(!current->bComplete) return;
   current->bComplete = 0;
@@ -1379,7 +1442,7 @@ void fsm_Mashine(void)
 
 
 
-void setPins(int DPPin,int DMPin)
+void FAST_CODE setPins(int DPPin,int DMPin)
 {
   DP_PIN = DPPin;
   DM_PIN = DMPin;
@@ -1401,10 +1464,10 @@ void setPins(int DPPin,int DMPin)
 }
 
 
-sUsbContStruct  current_usb[NUM_USB];
+sUsbContStruct FAST_DATA current_usb[NUM_USB];
 
 
-int checkPins(int dp,int dm)
+static inline int checkPins(int dp,int dm)
 {
   int diff = abs(dp-dm);
   if(diff>7||diff==0) {
@@ -1424,7 +1487,7 @@ int64_t get_system_time_us(void)
 }
 */
 
-float testDelay6(float freq_MHz)
+float FAST_CODE testDelay6(float freq_MHz)
 {
   // 6 bits must take 4.0 uSec
   #define SEND_BITS 120
@@ -1456,11 +1519,9 @@ float testDelay6(float freq_MHz)
   return res;
 }
 
-uint8_t arr[0x200];
-
 #define F_USB_LOWSPEED 1500000
 #define F_TIMING_BIT_ADDPRECISION 8
-void gpio_test(void) //test with improved timing
+void FAST_CODE gpio_test(void) //test with improved timing
 {
     hal_gpio_set_direction(DP_PIN, 1);
     hal_gpio_set_direction(DM_PIN, 1);
@@ -1471,13 +1532,14 @@ void gpio_test(void) //test with improved timing
     {
       int32_t t = cpu_hal_get_cycle_count() - xt1;
       if(t < td>>F_TIMING_BIT_ADDPRECISION) continue;
-      hal_set_differential_gpio_value(DP_PIN, DM_PIN, b^=1);
+      b^=1;
+      hal_set_differential_gpio_value(DP_PIN, DM_PIN, b);
       td += ((F_CPU/1000)*(1<<F_TIMING_BIT_ADDPRECISION))/(F_USB_LOWSPEED/1000);
       ++i;
     }
 }
 
-void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
+void FAST_CODE initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
 {
   decoded_receive_buffer_head = 0;
   decoded_receive_buffer_tail = 0;
@@ -1533,28 +1595,28 @@ void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
       setPins(current->DP,current->DM);
       //gpio_test();
 
-      printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
+      printf("READ_BOTH_PINS = %04x\n", (int)READ_BOTH_PINS);
       SET_O(DP_PIN, DM_PIN);
       SE_0;
       SE_J;
       SE_0;
       SET_I(DP_PIN, DM_PIN);
-      printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
+      printf("READ_BOTH_PINS = %04x\n", (int)READ_BOTH_PINS);
       hal_gpio_set_direction(current->DP, GPIO_MODE_OUTPUT);
       hal_gpio_set_direction(current->DM, GPIO_MODE_OUTPUT);
-      printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
+      printf("READ_BOTH_PINS = %04x\n", (int)READ_BOTH_PINS);
       SET_I(DP_PIN, DM_PIN);
-      printf("READ_BOTH_PINS = %04x\n",READ_BOTH_PINS);
+      printf("READ_BOTH_PINS = %04x\n", (int)READ_BOTH_PINS);
 
       if(!calibrated) {
         //calibrate delay divide 2
-        #define DELAY_CORR 2
+        #define DELAY_CORR 0 //correction not needed with new timing algorithm
         int freq_mhz = hal_get_cpu_mhz();
 #ifdef ESP32        
         int  uTime = 250;
 #else
 #ifdef __IMXRT1062__
-        int  uTime = freq_mhz*2;
+        int  uTime = freq_mhz;
 #ifdef TIMING_PREC
         uTime *= TIMING_PREC;
 #endif
@@ -1566,7 +1628,7 @@ void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
         printf("cpu freq = %d MHz\n", freq_mhz);
         TM_OUT = freq_mhz/2;
         // 8  - func divided clock to 8, 1.5 - MHz USB LS //NOTE: N=8 noy anymore constant, depends on clock frequency
-        TIME_MULT = (int)(TIME_SCALE/(freq_mhz/(1<<TIME_FACTOR_BITS)/1.5)+0.5); //this fixes the timing bug!!
+        TIME_MULT = (int)(TIME_SCALE*(1.5*(1<<TIME_FACTOR_BITS))/freq_mhz+0.5); //this fixes the timing bug!!
         printf("TIME_MULT = %d \n",TIME_MULT);
 
         int     TRANSMIT_TIME_DELAY_OPT = 0;
@@ -1608,7 +1670,7 @@ void initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
 
 
 
-void usbSetFlags(int _usb_num,uint8_t flags)
+void FAST_CODE usbSetFlags(int _usb_num,uint8_t flags)
 {
   if(_usb_num<NUM_USB&&_usb_num>=0) {
     current_usb[_usb_num].flags_new =  flags;
@@ -1617,7 +1679,7 @@ void usbSetFlags(int _usb_num,uint8_t flags)
 
 
 
-uint8_t usbGetFlags(int _usb_num)
+uint8_t FAST_CODE usbGetFlags(int _usb_num)
 {
   if(_usb_num<NUM_USB&&_usb_num>=0) {
     return current_usb[_usb_num].flags;
@@ -1627,7 +1689,7 @@ uint8_t usbGetFlags(int _usb_num)
 
 
 
-void usb_process(void)
+void FAST_CODE usb_process(void)
 {
 #ifdef ESP32
   #if CONFIG_IDF_TARGET_ESP32C3 || defined ESP32C3
@@ -1644,11 +1706,9 @@ void usb_process(void)
   }
 }
 
-
-
-void printState(void)
+void FAST_CODE printState(void)
 {
-  static int cntl = 0;
+  static int FAST_DATA cntl = 0;
   cntl++;
   int ref = cntl%NUM_USB;
   sUsbContStruct * pcurrent = &current_usb[ref];

@@ -32,8 +32,12 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "printf.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
+//#include "printf.h"
+void _putchar(char character);
+#define printf_ printf
 
 
 // define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H ...) to include the
@@ -758,7 +762,12 @@ static int _vsnprintf(out_fct_type out, char* buffer, const size_t maxlen, const
       case 'f' :
       case 'F' :
         if (*format == 'F') flags |= FLAGS_UPPERCASE;
-        idx = _ftoa(out, buffer, idx, maxlen, va_arg(va, double), precision, width, flags);
+        { //this is needed to fix ABI issues for doubles
+        	int a[3] = {va_arg(va, int), va_arg(va, int) };
+        	double value;
+        	if ((int)va&4) { value = *(double*)(a); } else { a[2] = va_arg(va, int); value = *(double*)(a+1); }
+        	idx = _ftoa(out, buffer, idx, maxlen, value, precision, width, flags);
+        }
         format++;
         break;
 #if defined(PRINTF_SUPPORT_EXPONENTIAL)
@@ -768,7 +777,12 @@ static int _vsnprintf(out_fct_type out, char* buffer, const size_t maxlen, const
       case 'G':
         if ((*format == 'g')||(*format == 'G')) flags |= FLAGS_ADAPT_EXP;
         if ((*format == 'E')||(*format == 'G')) flags |= FLAGS_UPPERCASE;
-        idx = _etoa(out, buffer, idx, maxlen, va_arg(va, double), precision, width, flags);
+        { //this is needed to fix ABI issues for doubles
+        	int a[3] = {va_arg(va, int), va_arg(va, int) };
+        	double value;
+        	if ((int)va&4) { value = *(double*)(a); } else { a[2] = va_arg(va, int); value = *(double*)(a+1); }
+        	idx = _etoa(out, buffer, idx, maxlen, value, precision, width, flags);
+        }
         format++;
         break;
 #endif  // PRINTF_SUPPORT_EXPONENTIAL

@@ -91,10 +91,8 @@ libliteos.a: $(LIB_OBJECTS)
 	chmod -x $@
 
 clean:
-	$(RM) *.d *.o *.a *.elf *.list .*~ *~
+	$(RM) *.d *.o *.a *.elf *.list *.map *.bin .*~ *~
 
-terminal:
-	lxterm --kernel boot.bin /dev/ttyUSB0; reset
 	
 .PHONY: all everything clean load
 

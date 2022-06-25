@@ -26,64 +26,13 @@
 
 #ifndef _TUSB_OSAL_H_
 #define _TUSB_OSAL_H_
+//this somewhat mimics TinyUSB's osal.h
+#include <string.h>
+#include <stdint.h>
+//#include <stdio.h>
+static inline int tu_min16(uint16_t a, uint16_t b) { return a<b ? a:b;} //needed for FIFOs
+static inline void tu_unaligned_write32(void *ptr, uint32_t value) { *(uint32_t*)ptr = value; }
+static inline uint32_t tu_unaligned_read32(const void * ptr) { return *(uint32_t*)ptr; }
 
-#ifdef __cplusplus
- extern "C" {
-#endif
-
-#include "common/tusb_common.h"
-
-// Return immediately
-#define OSAL_TIMEOUT_NOTIMEOUT     (0)
-// Default timeout
-#define OSAL_TIMEOUT_NORMAL        (10)
-// Wait forever
-#define OSAL_TIMEOUT_WAIT_FOREVER  (UINT32_MAX)
-
-#define OSAL_TIMEOUT_CONTROL_XFER  OSAL_TIMEOUT_WAIT_FOREVER
-
-typedef void (*osal_task_func_t)( void * );
-
-#if CFG_TUSB_OS == OPT_OS_NONE
-  #include "osal_none.h"
-#elif CFG_TUSB_OS == OPT_OS_FREERTOS
-  #include "osal_freertos.h"
-#elif CFG_TUSB_OS == OPT_OS_MYNEWT
-  #include "osal_mynewt.h"
-#elif CFG_TUSB_OS == OPT_OS_PICO
-  #include "osal_pico.h"
-#elif CFG_TUSB_OS == OPT_OS_RTTHREAD
-  #include "osal_rtthread.h"
-#elif CFG_TUSB_OS == OPT_OS_RTX4
-  #include "osal_rtx4.h"
-#elif CFG_TUSB_OS == OPT_OS_CUSTOM
-  #include "tusb_os_custom.h" // implemented by application
-#else
-  #error OS is not supported yet
-#endif
-
-//--------------------------------------------------------------------+
-// OSAL Porting API
-// Should be implemented as static inline function in osal_port.h header
-/*
-   osal_semaphore_t osal_semaphore_create(osal_semaphore_def_t* semdef);
-   bool osal_semaphore_post(osal_semaphore_t sem_hdl, bool in_isr);
-   bool osal_semaphore_wait(osal_semaphore_t sem_hdl, uint32_t msec);
-   void osal_semaphore_reset(osal_semaphore_t sem_hdl); // TODO removed
-
-   osal_mutex_t osal_mutex_create(osal_mutex_def_t* mdef);
-   bool osal_mutex_lock (osal_mutex_t sem_hdl, uint32_t msec);
-   bool osal_mutex_unlock(osal_mutex_t mutex_hdl);
-
-   osal_queue_t osal_queue_create(osal_queue_def_t* qdef);
-   bool osal_queue_receive(osal_queue_t qhdl, void* data, uint32_t msec);
-   bool osal_queue_send(osal_queue_t qhdl, void const * data, bool in_isr);
-   bool osal_queue_empty(osal_queue_t qhdl);
-*/
-//--------------------------------------------------------------------+
-
-#ifdef __cplusplus
- }
-#endif
 
 #endif /* _TUSB_OSAL_H_ */

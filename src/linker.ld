@@ -3,10 +3,6 @@ ENTRY(_start)
 
 __DYNAMIC = 0;
 
-/* 
- * We include our own 'regions.ld', with main_ram that starts 256 KB
- * later (the first 256 KBs are kept fo the OS).
- */
 INCLUDE regions.ld
 
 SECTIONS
@@ -18,9 +14,7 @@ SECTIONS
 		/* don't get disposed of by greedy optimisation */
 		*crt0*(.text)
 		KEEP(*crt0*(.text))
-		KEEP(*(.text.isr))
-
-		*(.text .stub .text.* .gnu.linkonce.t.*)
+		*(.text .stub .text.* .gnu.linkonce.t.* .gnu.*lto*)
 		_etext = .;
 	} > main_ram
 
@@ -28,23 +22,48 @@ SECTIONS
 	{
 		. = ALIGN(8);
 		_frodata = .;
-		*(.rodata .rodata.* .gnu.linkonce.r.*)
+		*(.rodata)
+		*(.rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		. = ALIGN(8);
 		_erodata = .;
 	} > main_ram
 
+
 	.data :
 	{
 		. = ALIGN(8);
+		/* _fdata = .; */
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
-		_gp = ALIGN(16);
+		/* _gp = ALIGN(16); */
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
 		. = ALIGN(8);
+		/* _edata = .; */
 	} > main_ram
 
-	.bss :
+
+	.fast_text : 
+	{
+        . = ALIGN (8);
+	    _fast_text_loadaddr = LOADADDR(.fast_text);
+		_fast_text = .;
+		*(.fast_text)
+        . = ALIGN (8);
+		_efast_text = .;
+	} > sram AT > main_ram
+	
+	.fast_data : 
+	{
+        . = ALIGN (8);
+	    _fast_data_loadaddr = LOADADDR(.fast_data);
+		_fast_data = .;
+		*(.fast_data)
+		_efast_data = .;
+	}  > sram AT > main_ram
+	
+
+	.bss : /* NOTE: this includes _end, so it must come at the end for correct malloc */
 	{
 		. = ALIGN(8);
 		_fbss = .;
@@ -58,6 +77,10 @@ SECTIONS
 		_ebss = .;
 		_end = .;
 	} > main_ram
+
 }
 
+PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 4);
 
+PROVIDE(_fdata_rom = LOADADDR(.data));
+PROVIDE(_edata_rom = LOADADDR(.data) + SIZEOF(.data));
