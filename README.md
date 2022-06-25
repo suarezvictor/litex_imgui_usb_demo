@@ -27,6 +27,7 @@ CC             := riscv64-unknown-elf-gcc
 CCFLAGS        := -march=rv32im -mabi=ilp32
 OBJDUMP        := riscv64-unknown-elf-objdump
 ```
+and run `make`
 
 ##  Commands to run for generating the SoC with LiteX
 It's assumed that LiteX is downloaded and compilers correctly set<br>
