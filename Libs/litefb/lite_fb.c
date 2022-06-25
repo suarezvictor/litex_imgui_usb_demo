@@ -31,19 +31,10 @@
  *              phy=self.videophy, timings="640x480@75Hz", 
  *              format="rgb888", clock_domain="hdmi"
  *          )
- *          blitter = Blitter(port=self.sdram.crossbar.get_port(mode="write", data_width=32))
+ *          blitter = Blitter(port=self.sdram.crossbar.get_port())
  *          self.submodules.blitter = blitter
  *  ...
  */ 
-#ifndef CSR_VIDEO_FRAMEBUFFER_BASE
-void     fb_set_read_page(uint32_t addr) {}
-void     fb_set_write_page(uint32_t addr) {}
-int      fb_init(void) { return 0; }
-void     fb_on(void) {}
-void     fb_off(void) {}
-void     fb_clear(void) {}
-
-#else
 
 #define FB_MIN(x,y) ((x) < (y) ? (x) : (y))
 #define FB_MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -159,65 +150,17 @@ void fb_set_cliprect(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2) {
  * \param[in] len number of pixels
  * \param[in] RGB color
  */ 
-static inline int fb_hline_no_wait_dma(uint32_t* pix_start, uint32_t len, uint32_t RGB) {
+static inline void fb_hline_no_wait_dma(uint32_t* pix_start, uint32_t len, uint32_t RGB) {
 #ifdef CSR_BLITTER_BASE
-#if CSR_BLITTER_VALUE_SIZE == 1
+    blitter_value_write(RGB);
     blitter_dma_writer_base_write((uint32_t)(pix_start));
     blitter_dma_writer_length_write(len*4);
-    blitter_value_write(RGB);
     blitter_dma_writer_enable_write(1);
-    return 1;
-#elif CSR_BLITTER_VALUE_SIZE == 2
-     //this is an optimized implementations that allows DMA of two pixels and
-     //correct the missing parts on the left and right, in a chache-aware way
-     //TODO: best implementation would be to DMA single-pixel at left part,
-     //simultaneously DMA single-pixel at right part, and also simultaneously
-     //the middle part at the widest possible bus size
-
-#ifndef CPU_CACHE_SIZE
-#define CPU_CACHE_SIZE 16 //in bytes
-#warning CPU_CACHE_SIZE should match SoC definition
-#endif
-
-#define CACHE_MASK ((CPU_CACHE_SIZE/sizeof(*pix_start))-1)
-    //write left misaligned part
-    for(;;)
-    {
-      if(len == 0) return 0;
-      uint8_t misalingment = ((intptr_t) pix_start) & (CACHE_MASK*sizeof(*pix_start));
-      if(!misalingment) break;
-      
-      *pix_start++ = RGB; //0xFF0000;
-      --len;
-    }
-    
-    uint32_t masked_len = len & ~CACHE_MASK;
-    
-    blitter_dma_writer_base_write((uint32_t)(pix_start));
-    if(masked_len)
-    {
-      blitter_value_write(RGB | ((uint64_t)RGB << 32));
-      blitter_dma_writer_length_write(masked_len*sizeof(*pix_start));
-      blitter_dma_writer_enable_write(1);
-    }
-    
-    //write right misaligned part
-    uint32_t *pix_end = pix_start + len;
-    pix_start += masked_len;
-    while(pix_start != pix_end)
-      *pix_start++ = RGB; //0xFF0000;
-      
-    return masked_len != 0;
-
-#else
-#error unsupported bilitter width
-#endif    
 #else
     for(uint32_t i=0; i<len; ++i) {
 	*pix_start = RGB;
 	++pix_start;
     }
-    return 1;
 #endif    
 }
 
@@ -243,15 +186,13 @@ static inline void fb_hline_wait_dma(void) {
  * \param[in] RGB color
  */ 
 static inline void fb_hline(uint32_t* pix_start, uint32_t len, uint32_t RGB) {
-   if(fb_hline_no_wait_dma(pix_start, len, RGB))
-     fb_hline_wait_dma();
+   fb_hline_no_wait_dma(pix_start, len, RGB);
+   fb_hline_wait_dma();
 }
 
 void fb_fillrect(
     uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint32_t RGB
 ) {
-    if(x1>x2 || y1>y2) return;
-    
     uint32_t w = x2-x1+1;
     uint32_t* line_ptr = fb_pixel_address(x1,y1);
     for(int y=y1; y<=y2; ++y) {
@@ -515,9 +456,8 @@ static int fb_clip(int nb_pts, int** poly) {
 }
 
 void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
-#warning large temp arrays are allocated on the stack (if not micropython does not get enough memory and raises "MemoryError")
-    /*static*/ uint32_t x_left[FB_HEIGHT];
-    /*static*/ uint32_t x_right[FB_HEIGHT];
+    static uint32_t x_left[FB_HEIGHT];
+    static uint32_t x_right[FB_HEIGHT];
 
     /* determine miny, maxy */
     int clockwise = 0;
@@ -664,6 +604,5 @@ void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
 }
 
 /******************************************************************************/
-#endif // CSR_VIDEO_FRAMEBUFFER_BASE
 
 
