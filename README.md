@@ -1,2 +1,2 @@
 # LiteUSB
-Soft USB for LiteX
+Soft USB for LiteX (and Dear ImGui demo)
