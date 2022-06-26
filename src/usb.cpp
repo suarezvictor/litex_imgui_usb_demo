@@ -92,7 +92,8 @@ usb_pins_config_t USB_Pins_Config =
 
 extern "C" void loop();
 extern "C" void setup();
-bool do_ui_update(int mousex, int mousey, int buttons, int wheel);
+bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel);
+bool do_keybui_update(int modifiers, int key, bool pressed);
 void ui_init();
 void do_ui();
 
@@ -162,12 +163,36 @@ void loop()
   }
 #endif
 
+
+      struct keyreport {
+        union {
+          struct { //USB format matches ImGuiModFlags_Ctrl, etc
+             uint8_t lctrl :1; 
+             uint8_t lshift :1;
+             uint8_t lalt :1;
+             uint8_t lsuper :1;
+             uint8_t rctrl :1;
+             uint8_t rshift :1;
+             uint8_t ralt :1;
+             uint8_t rsuper :1;
+          };
+          uint8_t modifier;
+        };
+        uint8_t :8; //reserved
+        uint8_t scancode[6];
+      };
+      bool iskeybpacket = (msg.len == sizeof(keyreport)); // 'a' packet: 0x00 0x00 0x04 0x00 0x00 0x00 0x00 0x00 https://wiki.osdev.org/USB_Human_Interface_Devices#Report_format
       bool ismousepacket = (msg.len == 6); //FIXME: too hacky a way of discriminating a mouse packet (HID spec allows just 3 bytes as valid, some mouses report 20 byte packets)
 
-      static int x = FB_WIDTH/2, y = FB_HEIGHT/2;
-      
-      if(ismousepacket)
+      if(iskeybpacket)
       {
+        keyreport& k = *(keyreport*) msg.data;
+        if(do_keybui_update(k.modifier, k.scancode[0], k.scancode[0] != 0))
+          break;
+      }
+      else if(ismousepacket)
+      {
+        static int x = FB_WIDTH/2, y = FB_HEIGHT/2;
         //packet decoding in 12-bit values (some mouses reports 8 bit values)
         //see https://forum.pjrc.com/threads/45740-USB-Host-Mouse-Driver
         uint8_t buttons = msg.data[0];
@@ -183,7 +208,7 @@ void loop()
         if(x >= FB_WIDTH) x = FB_WIDTH-1; 
         if(y < 0) y = 0;
         if(y >= FB_HEIGHT) y = FB_HEIGHT-1;
-        if(do_ui_update(x, y, buttons, mousewheel))
+        if(do_mouseui_update(x, y, buttons, mousewheel))
         {
 #if 1//ndef USE_IMGUI         
           printf("x %d (%+d), y %d (%+d), dy %d buttons 0x%02X wheel %d (%+d)\n", x, dx, y, dy, buttons, mousewheel, wheel);
@@ -212,11 +237,34 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 
 
 #ifdef USE_IMGUI
-uint8_t mousebuttons = 0;
-bool do_ui_update(int mousex, int mousey, int buttons, int wheel)
+#include "usb_keys.h"
+bool do_keybui_update(int modifiers, int key, bool pressed)
 {
   ImGuiIO& io = ImGui::GetIO();
-  io.MousePos = ImVec2((float)mousex, (float)mousey);
+  //printf("KEY PRESS 0x%02x, modifier 0x%02x\n", key, modifiers);
+  //io.AddKeyEvent(scan2imguikey(key), pressed);  //TODO: ImGui v1.88
+ 
+    if(key > 0 && pressed)
+    {
+      if(modifiers & (HID_LSHIFT | HID_RSHIFT))
+      {
+        if(key < sizeof(usb_key_codesSHIFT))
+          io.AddInputCharacter(usb_key_codesSHIFT[key]);
+      }
+      else
+      {
+        if(key < sizeof(usb_key_codesPLAIN))
+          io.AddInputCharacter(usb_key_codesPLAIN[key]);
+      }
+    }
+    return true;
+}
+
+uint8_t mousebuttons = 0;
+bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel)
+{
+  ImGuiIO& io = ImGui::GetIO();
+  io.MousePos = ImVec2((float)mousex, (float)mousey); //TODO: AddMousePosEvent in ImGui v1.88
   //mousebuttons |= buttons; //this is for auto release
   if(mousebuttons != buttons)
   {
@@ -247,7 +295,7 @@ void do_ui()
         ImGui::NewFrame();
         static int color_r = 0, color_g = 0, color_b = 0;
 #if 0
-        ImGui::ShowDemoWindow(NULL); //this makes mouse to stop working
+        ImGui::ShowDemoWindow(NULL); //tested working
 #else
         ImGui::SetNextWindowSize(ImVec2(180, 100));
         ImGui::Begin("Color");
@@ -255,8 +303,14 @@ void do_ui()
         ImGui::SliderInt("G", &color_g, 0, 255);
         ImGui::SliderInt("B", &color_b, 0, 255);
         ImGui::End();
+        /*
         ImGui::Begin("FPS");
         ImGui::Text("%d", int(io.Framerate)); 
+        ImGui::End();
+        */     
+        static char inputstr[128] = ""; //initial value
+        ImGui::Begin("Input Text");
+        ImGui::InputText("textid", inputstr, IM_ARRAYSIZE(inputstr));        
         ImGui::End();
 #endif
 
@@ -323,7 +377,7 @@ void operator delete(void *p) {
    return ImGui::MemFree(p);
 }
 #else
-bool do_ui_update(int mousex, int mousey, int buttons, int wheel)
+bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel)
 {
   static int lastx = FB_WIDTH/2, lasty = FB_HEIGHT/2;
   uint32_t color = 0;
