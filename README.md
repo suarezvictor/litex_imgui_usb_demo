@@ -4,7 +4,10 @@ This is an implementation of a 100% software USB host stack for a LiteX SoC, and
 ## Hardware requirements
 * Referenced Arty board
 * a VGA PMOD (connectors B-C) or DVI adapter PMOD (connector C) 
-* USB host PMOD on connector D (D+ on pin 0, D- on pin 4)
+* USB host PMOD on connector D (D+ on pin 0, D- on pin 4) with 15K pulldowns
+
+![USB host circuit](https://www.beyondlogic.org/usbnutshell/lspullup.gif)
+
 
 ## Software dependencies
 * LiteX and associated tools (compilers, synthesis tools, etc.)
