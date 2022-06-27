@@ -11,8 +11,9 @@ INC += -I$(USBHOST_DIR)
 INC += -I$(FB_DIR)
 INC += -I$(TINYUSB_SCR_DIR)
 #INC += -I$(BUILD_DIRECTORY)/software/include
-CXXFLAGS += $(INC) -O2 -march=rv32im -mabi=ilp32
-CFLAGS += $(INC) -O2 -Wno-missing-prototypes -march=rv32im -mabi=ilp32
+CCDEFS = -DIMGUI_USE_BGRA_PACKED_COLOR
+CXXFLAGS += $(CCDEFS) $(INC) -O2 -march=rv32im -mabi=ilp32
+CFLAGS += $(CCDEFS) $(INC) -O2 -Wno-missing-prototypes -march=rv32im -mabi=ilp32
 
 IMGUI_OBJECTS=imgui.o imgui_demo.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui_sw.o
 USB_OBJECTS=$(USBHOST_DIR)/usb_host.o $(TINYUSB_SCR_DIR)/common/tusb_fifo.o
@@ -34,5 +35,5 @@ all: usb_main.elf
 	$(OBJCOPY) -O binary $@ $@.bin
 
 sim: sdl_main.cpp test_ui.cpp
-	 c++ `sdl2-config --cflags` -I$(IMGUI_DIR) sdl_main.cpp `sdl2-config --libs` -lGL -o sim
+	 $(CXX) `sdl2-config --cflags` -I$(IMGUI_DIR) sdl_main.cpp `sdl2-config --libs` -lGL -o sim
 	 ./sim

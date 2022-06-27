@@ -311,9 +311,9 @@ class BaseSoC(SoCCore):
             platform.add_extension([("vga", 0, #PMOD VGA on pmod B & C
                 Subsignal("hsync", Pins("U14")), #pmodc.4
                 Subsignal("vsync", Pins("V14")), #pmodc.5
-                Subsignal("b", Pins("E15 E16 D15 C15")), #pmodb.0-3
+                Subsignal("r", Pins("E15 E16 D15 C15")), #pmodb.0-3
                 Subsignal("g", Pins("U12 V12 V10 V11")), #pmodc.0-3
-                Subsignal("r", Pins("J17 J18 K15 J15")), #pmodb.4-7
+                Subsignal("b", Pins("J17 J18 K15 J15")), #pmodb.4-7
                 IOStandard("LVCMOS33"))])
             from litex.soc.cores.video import VideoVGAPHY
             self.submodules.videophy = VideoVGAPHY(platform.request("vga"), clock_domain="vga")
