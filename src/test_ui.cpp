@@ -2,7 +2,6 @@ uint32_t do_test_ui()
 
     {
         
-        ImGui::NewFrame();
         static int color_r = 0, color_g = 0, color_b = 0;
 #if 0
         ImGui::ShowDemoWindow(NULL); //tested working
@@ -26,7 +25,6 @@ uint32_t do_test_ui()
         ImGui::End();
 #endif
 
-        ImGui::Render();
         return color_b | (color_g <<8 ) | (color_r << 16);
     }
 

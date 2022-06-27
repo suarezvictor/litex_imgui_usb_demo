@@ -292,6 +292,7 @@ bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel)
   return false;
 }
 
+#include "test_ui.cpp"
 void do_ui()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -304,48 +305,25 @@ void do_ui()
     mousewheel = 0;
 
     static int n = 0;
-    {
-        static uint64_t t0 = micros();
-        uint64_t t1 = micros();
-        io.DeltaTime = (t1-t0)*1e-6;
-        t0 = t1;
-        
-        ImGui::NewFrame();
-        static int color_r = 0, color_g = 0, color_b = 0;
-#if 0
-        ImGui::ShowDemoWindow(NULL); //tested working
-#else
-        ImGui::SetNextWindowSize(ImVec2(180, 100));
-        ImGui::Begin("Color");
-        ImGui::SliderInt("R", &color_r, 0, 255);
-        ImGui::SliderInt("G", &color_g, 0, 255);
-        ImGui::SliderInt("B", &color_b, 0, 255);
-        ImGui::End();
-        /*
-        ImGui::Begin("FPS");
-        ImGui::Text("%d", int(io.Framerate)); 
-        ImGui::End();
-        */     
-        static char inputstr[128] = ""; //initial value
-        ImGui::Begin("Input Text");
-        ImGui::InputText("textid", inputstr, IM_ARRAYSIZE(inputstr));
-        //if(ImGui::IsWindowAppearing())
-        //  ImGui::SetKeyboardFocusHere(0);
-        ImGui::End();
-#endif
+    static uint64_t t0 = micros();
+    uint64_t t1 = micros();
+    io.DeltaTime = (t1-t0)*1e-6;
+    t0 = t1;
 
-        ImGui::Render();
-        imgui_sw::paint_imgui((uint32_t*)fb_base,VIDEO_FRAMEBUFFER_HRES,VIDEO_FRAMEBUFFER_VRES);
+    ImGui::NewFrame();
+    uint32_t bgcolor = do_test_ui();
+    ImGui::Render();
 
-        //draw the mouse pointer as a cross
-        fb_set_cliprect(0, 0, VIDEO_FRAMEBUFFER_HRES-1, VIDEO_FRAMEBUFFER_VRES-1);
-        fb_line(mousex-5, mousey, mousex+6, mousey, 0x00FF00);
-        fb_line(mousex, mousey-5, mousex, mousey+6, 0x00FF00);
+    imgui_sw::paint_imgui((uint32_t*)fb_base,VIDEO_FRAMEBUFFER_HRES,VIDEO_FRAMEBUFFER_VRES);
 
-        fb_swap_buffers();
-        fb_fillrect(10, 10, VIDEO_FRAMEBUFFER_HRES-10, VIDEO_FRAMEBUFFER_VRES-10, color_b | (color_g <<8 ) | (color_r << 16));
-        //fb_clear();
-    }
+    //draw the mouse pointer as a cross
+    fb_set_cliprect(0, 0, VIDEO_FRAMEBUFFER_HRES-1, VIDEO_FRAMEBUFFER_VRES-1);
+    fb_line(mousex-5, mousey, mousex+6, mousey, 0x00FF00);
+    fb_line(mousex, mousey-5, mousex, mousey+6, 0x00FF00);
+
+    fb_swap_buffers();
+    fb_fillrect(10, 10, VIDEO_FRAMEBUFFER_HRES-10, VIDEO_FRAMEBUFFER_VRES-10, bgcolor);
+    //fb_clear();
 }
 
 size_t alloc_total = 0;

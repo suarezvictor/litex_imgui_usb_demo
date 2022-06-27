@@ -1,6 +1,7 @@
 BUILD_DIRECTORY=../build/digilent_arty
 USBHOST_DIR?=../Libs/usbhost
 FB_DIR=../Libs/litefb
+IMGUI_DIR=../Libs/imgui
 TINYUSB_SCR_DIR=../Libs/tinyusb
 RVFPLIB?=../../RVfplib/
 
@@ -31,3 +32,7 @@ all: usb_main.elf
 		-L. $(LIBS:lib%=-l%) -L$(RVFPLIB)/build/lib -lrvfp
 	chmod -x $@
 	$(OBJCOPY) -O binary $@ $@.bin
+
+sim:
+	 c++ `sdl2-config --cflags` -I$(IMGUI_DIR) sdl_main.cpp `sdl2-config --libs` -lGL -o sim
+	 ./sim
