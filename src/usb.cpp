@@ -6,6 +6,12 @@
 //for DVI 800x600@50Hz: 
 //$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
 
+//GPIO pins for USB
+#define DM_P0  12 //D-
+#define DP_P0  13 //D+
+#define DP_P1  14 //D+
+#define DM_P1  15 //D-
+
 //#define DEBUG_ALL
 #define USE_IMGUI
 
@@ -23,8 +29,6 @@ extern "C" {
 
 #define LED_BUILTIN 0
 #define PROFILE_NAME "LiteX"
-#define DP_P0  8
-#define DM_P0  12
 
 //#include "usb_host.h"
 #include "USBHost.hpp"
@@ -85,7 +89,7 @@ void my_LedBlinkCB(int on_off)
 usb_pins_config_t USB_Pins_Config =
 {
   DP_P0, DM_P0,
-  -1, -1,
+  DP_P1, DM_P1,
   -1, -1,
   -1, -1
 };
