@@ -119,7 +119,8 @@ int main(int, char**)
             ImGui::ShowDemoWindow(&show_demo_window);
         }
 #else
-        uint32_t bgcolor = do_test_ui();
+        ImU32 bgcolor = do_test_ui();
+        clear_color = ImGui::ColorConvertU32ToFloat4(bgcolor);
 #endif
         // Rendering
         glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);

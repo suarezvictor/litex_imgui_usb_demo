@@ -33,6 +33,6 @@ all: usb_main.elf
 	chmod -x $@
 	$(OBJCOPY) -O binary $@ $@.bin
 
-sim:
+sim: sdl_main.cpp test_ui.cpp
 	 c++ `sdl2-config --cflags` -I$(IMGUI_DIR) sdl_main.cpp `sdl2-config --libs` -lGL -o sim
 	 ./sim
