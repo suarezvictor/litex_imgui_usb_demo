@@ -18,6 +18,7 @@ extern "C" {
 #ifdef USE_IMGUI
 #include "imgui.h"
 #include "imgui_sw.h"
+#include "usb_keys.h"
 #endif
 
 #define LED_BUILTIN 0
@@ -164,23 +165,6 @@ void loop()
 #endif
 
 
-      struct keyreport {
-        union {
-          struct { //USB format matches ImGuiModFlags_Ctrl, etc
-             uint8_t lctrl :1; 
-             uint8_t lshift :1;
-             uint8_t lalt :1;
-             uint8_t lsuper :1;
-             uint8_t rctrl :1;
-             uint8_t rshift :1;
-             uint8_t ralt :1;
-             uint8_t rsuper :1;
-          };
-          uint8_t modifier;
-        };
-        uint8_t :8; //reserved
-        uint8_t scancode[6];
-      };
       bool iskeybpacket = (msg.len == sizeof(keyreport)); // 'a' packet: 0x00 0x00 0x04 0x00 0x00 0x00 0x00 0x00 https://wiki.osdev.org/USB_Human_Interface_Devices#Report_format
       bool ismousepacket = (msg.len == 6); //FIXME: too hacky a way of discriminating a mouse packet (HID spec allows just 3 bytes as valid, some mouses report 20 byte packets)
 
@@ -237,27 +221,61 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 
 
 #ifdef USE_IMGUI
-#include "usb_keys.h"
 bool do_keybui_update(int modifiers, int key, bool pressed)
 {
   ImGuiIO& io = ImGui::GetIO();
-  //printf("KEY PRESS 0x%02x, modifier 0x%02x\n", key, modifiers);
-  //io.AddKeyEvent(scan2imguikey(key), pressed);  //TODO: ImGui v1.88
- 
-    if(key > 0 && pressed)
+  //printf("KEY PRESS 0x%02x, modifiers 0x%02x\n", key, modifiers);
+
+  bool keyevent = false;
+  char inputchar = '\0';
+  if(key > 0 && pressed)
+  {
+    switch(modifiers)
     {
-      if(modifiers & (HID_LSHIFT | HID_RSHIFT))
-      {
-        if(key < sizeof(usb_key_codesSHIFT))
-          io.AddInputCharacter(usb_key_codesSHIFT[key]);
-      }
-      else
-      {
+      case 0: //add plain character only if no modifiers are set
         if(key < sizeof(usb_key_codesPLAIN))
-          io.AddInputCharacter(usb_key_codesPLAIN[key]);
-      }
+          inputchar = usb_key_codesPLAIN[key];
+        break;
+      case HID_LSHIFT_MASK: //add shifted character only if no other modifiers are present
+      case HID_RSHIFT_MASK:
+      case HID_LSHIFT_MASK | HID_RSHIFT_MASK:
+        if(key < sizeof(usb_key_codesSHIFT))
+          inputchar = usb_key_codesSHIFT[key];
+        break;
     }
-    return true;
+  }
+  
+  if(inputchar)
+  {
+    io.AddInputCharacter(inputchar);
+    keyevent = true;
+  }
+
+  io.KeyShift = 0 != (modifiers & (HID_LSHIFT_MASK | HID_RSHIFT_MASK));
+  io.KeyCtrl  = 0 != (modifiers & (HID_LCTRL_MASK | HID_RCTRL_MASK));
+  io.KeyAlt   = 0 != (modifiers & (HID_LALT_MASK | HID_RALT_MASK));
+  io.KeySuper = 0 != (modifiers & (HID_LSUPER_MASK | HID_RSUPER_MASK));
+
+  if(!pressed)
+  {
+    keyevent = true;
+    memset(io.KeysDown, 0, sizeof(io.KeysDown)); //TODO: only clear released key
+    printf("KEY RELEASED event, key 0x%02x modifiers 0x%02x\n", key, modifiers);
+  }
+  else
+  {
+    ImGuiKey imkey = scan2imguikey(key);
+    if(imkey != IMGUIKEY_NONE)
+    {
+      keyevent = true;
+      //io.AddKeyEvent(key, pressed);  //TODO: ImGui v1.88
+      io.KeyMap[imkey] = key; //setup keymap
+      io.KeysDown[key] = pressed;
+    }
+    printf("KEY PRESS event, key 0x%02x, char '%c', imkey %d, modifiers 0x%02x\n", key, inputchar, imkey != IMGUIKEY_NONE ? imkey : -1, modifiers);
+  }
+    
+  return keyevent;
 }
 
 uint8_t mousebuttons = 0;
@@ -310,7 +328,9 @@ void do_ui()
         */     
         static char inputstr[128] = ""; //initial value
         ImGui::Begin("Input Text");
-        ImGui::InputText("textid", inputstr, IM_ARRAYSIZE(inputstr));        
+        ImGui::InputText("textid", inputstr, IM_ARRAYSIZE(inputstr));
+        //if(ImGui::IsWindowAppearing())
+        //  ImGui::SetKeyboardFocusHere(0);
         ImGui::End();
 #endif
 

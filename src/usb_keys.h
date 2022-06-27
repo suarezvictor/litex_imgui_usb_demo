@@ -1,37 +1,19 @@
+#ifndef _USB_KEYS_H_
+#define _USB_KEYS_H_
 /*
-Taken from https://www.win.tue.nl/~aeb/linux/kbd/scancodes-10.html
+Key map sources:
+https://www.win.tue.nl/~aeb/linux/kbd/scancodes-10.html
+https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2 (Public Domain)
+*/
 
+/*
 4	A 
-5	B 
-6	C 
-7	D 
-8	E 
-9	F 
-10	G 
-11	H 
-12	I 
-13	J 
-14	K 
-15	L 
-16	M 
-17	N 
-18	O 
-19	P 
-20	Q 
-21	R 
-22	S 
-23	T 
-24	U 
-25	V 
-26	W 
-27	X 
-28	Y 
 29	Z 
 30	1 ! 
 31	2 @ 
 32	3 # 
 33	4 $ 
-34	5 % E 
+34	5 %
 35	6 ^ 
 36	7 & 
 37	8 * 
@@ -99,34 +81,84 @@ Taken from https://www.win.tue.nl/~aeb/linux/kbd/scancodes-10.html
 99	KP-. / Del 
 */
 
-#define HID_LSHIFT 0x02
-#define HID_RSHIFT 0x20
+#define HID_LCTRL_MASK		0x01
+#define HID_LSHIFT_MASK		0x02
+#define HID_LALT_MASK		0x04
+#define HID_LSUPER_MASK		0x08
+#define HID_RCTRL_MASK		0x10
+#define HID_RALT_MASK		0x40
+#define HID_RSHIFT_MASK		0x20
+#define HID_RSUPER_MASK		0x80
+
+#define HID_KEY_A	4
+#define HID_KEY_Z	(HID_KEY_A+'Z'-'A') 
+
+#define HID_KEY_ENTER		0x28 // Keyboard Return (ENTER)
+#define HID_KEY_ESC			0x29 // Keyboard ESCAPE
+#define HID_KEY_BACKSPACE	0x2a // Keyboard DELETE (Backspace)
+#define HID_KEY_TAB			0x2b // Keyboard Tab
+#define HID_KEY_SPACE		0x2c // Keyboard Spacebar
+
+#define HID_KEY_INSERT		0x49 // Keyboard Insert
+#define HID_KEY_HOME		0x4a // Keyboard Home
+#define HID_KEY_PAGEUP		0x4b // Keyboard Page Up
+#define HID_KEY_DELETE		0x4c // Keyboard Delete Forward
+#define HID_KEY_END			0x4d // Keyboard End
+#define HID_KEY_PAGEDOWN	0x4e // Keyboard Page Down
+#define HID_KEY_RIGHT		0x4f // Keyboard Right Arrow
+#define HID_KEY_LEFT		0x50 // Keyboard Left Arrow
+#define HID_KEY_DOWN		0x51 // Keyboard Down Arrow
+#define HID_KEY_UP			0x52 // Keyboard Up Arrow
+
 
 static const char usb_key_codesPLAIN[]= { "\0\0\0\0abcdefghijklmnopqrtsuvwxyz1234567890\n\e\b\t _\0[]\\\0;'`,./" };
 static const char usb_key_codesSHIFT[]= { "\0\0\0\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()\n\e\b\t _\0{}|\0:\"~<>?" };
 
- /*
-    io.KeyMap[ImGuiKey_Tab] = VK_TAB;
-    io.KeyMap[ImGuiKey_LeftArrow] = VK_LEFT;
-    io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
-    io.KeyMap[ImGuiKey_UpArrow] = VK_UP;
-    io.KeyMap[ImGuiKey_DownArrow] = VK_DOWN;
-    io.KeyMap[ImGuiKey_PageUp] = VK_PRIOR;
-    io.KeyMap[ImGuiKey_PageDown] = VK_NEXT;
-    io.KeyMap[ImGuiKey_Home] = VK_HOME;
-    io.KeyMap[ImGuiKey_End] = VK_END;
-    io.KeyMap[ImGuiKey_Insert] = VK_INSERT;
-    io.KeyMap[ImGuiKey_Delete] = VK_DELETE;
-    io.KeyMap[ImGuiKey_Backspace] = VK_BACK;
-    io.KeyMap[ImGuiKey_Space] = VK_SPACE;
-    io.KeyMap[ImGuiKey_Enter] = VK_RETURN;
-    io.KeyMap[ImGuiKey_Escape] = VK_ESCAPE;
-    io.KeyMap[ImGuiKey_KeyPadEnter] = VK_RETURN;
-    io.KeyMap[ImGuiKey_A] = 'A';
-    io.KeyMap[ImGuiKey_C] = 'C';
-    io.KeyMap[ImGuiKey_V] = 'V';
-    io.KeyMap[ImGuiKey_X] = 'X';
-    io.KeyMap[ImGuiKey_Y] = 'Y';
-    io.KeyMap[ImGuiKey_Z] = 'Z';
-    */
+struct keyreport {
+  union {
+    struct { //USB format matches ImGuiModFlags_Ctrl, etc
+       uint8_t lctrl :1; 
+       uint8_t lshift :1;
+       uint8_t lalt :1;
+       uint8_t lsuper :1;
+       uint8_t rctrl :1;
+       uint8_t rshift :1;
+       uint8_t ralt :1;
+       uint8_t rsuper :1;
+    };
+    uint8_t modifier;
+  };
+  uint8_t :8; //reserved
+  uint8_t scancode[6];
+};
+
+#define IMGUIKEY_NONE ImGuiKey_COUNT //TODO: fix for v.188
+
+static ImGuiKey scan2imguikey(uint8_t scancode)
+{
+  switch(scancode)
+  {
+    case HID_KEY_TAB:		return ImGuiKey_Tab;
+    case HID_KEY_LEFT:		return ImGuiKey_LeftArrow;
+    case HID_KEY_RIGHT: 	return ImGuiKey_RightArrow;
+    case HID_KEY_UP: 		return ImGuiKey_UpArrow;
+    case HID_KEY_DOWN: 		return ImGuiKey_DownArrow;
+    case HID_KEY_PAGEUP:	return ImGuiKey_PageUp;
+    case HID_KEY_PAGEDOWN:	return ImGuiKey_PageDown;
+    case HID_KEY_HOME:		return ImGuiKey_Home;
+    case HID_KEY_END:		return ImGuiKey_End;
+    case HID_KEY_INSERT:	return ImGuiKey_Insert;
+    case HID_KEY_DELETE:	return ImGuiKey_Delete;
+    case HID_KEY_BACKSPACE:	return ImGuiKey_Backspace;
+    case HID_KEY_ENTER:		return ImGuiKey_Enter;
+    case HID_KEY_ESC:		return ImGuiKey_Escape;
+  }
+
+  if(scancode >= HID_KEY_A && scancode <= HID_KEY_Z)
+    return ImGuiKey_A + (scancode - HID_KEY_A);
+
+  return IMGUIKEY_NONE;
+}
     
+#endif // _USB_KEYS_H_
+
