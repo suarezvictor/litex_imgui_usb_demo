@@ -1,12 +1,17 @@
 # LiteUSB
-This is an implementation of a 100% software USB host stack for a LiteX SoC, and a GUI demo based on Dear ImGui library both running on the same CPU. It currently supports the Digilent Arty A7 board implementing a VexRiscv soft-core CPU running at 166/200MHz, and a mouse on low-speed mode.
+This is an implementation of a 100% software USB host stack for a LiteX SoC, and a GUI demo based on Dear ImGui library both running on the same CPU. It currently supports the Digilent Arty A7 board implementing a VexRiscv soft-core CPU running at 166/200MHz, and a mouse and keyboard (low-speed mode) working simultaneously.
 
 ## Hardware requirements
 * Referenced Arty board
 * a VGA PMOD (connectors B-C) or DVI adapter PMOD (connector C) 
-* USB host PMOD on connector D (D+ on pin 0, D- on pin 4) with 15K pulldowns
+* a dual USB host PMOD on connector D (bottom row, inner to outer): D-, D+ for 1st port and D+, D- for 2nd (note inversion), [configurable in software](https://github.com/suarezvictor/LiteUSB/blob/main/src/usb.cpp#L10)
+<br>
 
+![image](https://user-images.githubusercontent.com/8551129/176054420-310e5b2a-df6b-4a10-93ef-5195bc66483f.png)
 ![USB host circuit](https://www.beyondlogic.org/usbnutshell/lspullup.gif)
+<br>
+*NOTE: 15K pulldowns and external +5V supply*
+
 
 
 ## Software dependencies
@@ -56,8 +61,8 @@ litex_term --speed 1000000 --kernel usb_main.elf.bin /dev/ttyUSB1
 *NOTE: update the USB device to match your OS. The LiteX generated bitstream may need to be reloaded*
 
 ## Integrated dependencies
-Software that integrates the demo, related repos (with detailed commit history), and where sources are expected (assumes . = $REPOS_ROOT/LiteUSB/src)
-<br>*NOTE: some of these project sources were modified as this project requires*
+Software that integrates the demo, related repos (with detailed commit history), and where sources are expected (assumes . = $REPOS_ROOT/LiteUSB/)
+<br>*NOTE: some of these project sources were modified to suit this requirements*
 
 ESP32 USB host:
 https://github.com/suarezvictor/ESP32-USB-Soft-Host/tree/main/src → ./Libs/usbhost
@@ -68,12 +73,12 @@ https://github.com/suarezvictor/tinyusb/tree/master/src → ./Libs/tinyusb
 LearnFPGA's LiteFB:
 https://github.com/suarezvictor/learn-fpga/tree/master/LiteX/software/Libs→ ./Libs/litefb
 <br>
-LearnFPGA ImGUI:
-https://github.com/suarezvictor/learn-fpga/tree/master/LiteX/software/Libs/imgui → ./Libs/imgui
-(originally from https://github.com/ocornut/imgui/tree/78b28d545f79c5c5ed3e0ebae4099e44bdc6c5a6 and https://github.com/emilk/imgui_software_renderer)
+ImGUI (v1.87 WIP):
+https://github.com/ocornut/imgui/tree/78b28d545f79c5c5ed3e0ebae4099e44bdc6c5a6 → ./Libs/imgui
+(includes https://github.com/emilk/imgui_software_renderer and minimal tweaks from learn-fpga project)
 <br>
 Printf library:
-https://github.com/mpaland/printf -> ./
+https://github.com/mpaland/printf -> ./src
 <br>
 LiteX C DK:
 https://github.com/suarezvictor/micropython/tree/litex-rebase/ports/litex/liblitesdk → ./Libs/liblitesdk
