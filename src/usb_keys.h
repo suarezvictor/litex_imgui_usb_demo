@@ -110,6 +110,9 @@ https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2 (Public Doma
 #define HID_KEY_DOWN		0x51 // Keyboard Down Arrow
 #define HID_KEY_UP			0x52 // Keyboard Up Arrow
 
+#define HID_KEY_KPENTER     0x58 // Keypad ENTER
+
+#define HID_KEY_MAX			0x80
 
 static const char usb_key_codesPLAIN[]= { "\0\0\0\0abcdefghijklmnopqrtsuvwxyz1234567890\n\e\b\t _\0[]\\\0;'`,./" };
 static const char usb_key_codesSHIFT[]= { "\0\0\0\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()\n\e\b\t _\0{}|\0:\"~<>?" };
@@ -150,13 +153,21 @@ static ImGuiKey scan2imguikey(uint8_t scancode)
     case HID_KEY_INSERT:	return ImGuiKey_Insert;
     case HID_KEY_DELETE:	return ImGuiKey_Delete;
     case HID_KEY_BACKSPACE:	return ImGuiKey_Backspace;
-    case HID_KEY_ENTER:		return ImGuiKey_Enter;
     case HID_KEY_ESC:		return ImGuiKey_Escape;
+    case HID_KEY_ENTER:
+    case HID_KEY_KPENTER:	return ImGuiKey_Enter;
   }
 
-  if(scancode >= HID_KEY_A && scancode <= HID_KEY_Z)
-    return ImGuiKey_A + (scancode - HID_KEY_A);
-
+  switch(scancode-HID_KEY_A+'A')
+  {
+    case 'A': return ImGuiKey_A; // for text edit CTRL+A: select all
+    case 'C': return ImGuiKey_C; // for text edit CTRL+C: copy
+    case 'V': return ImGuiKey_V; // for text edit CTRL+V: paste
+    case 'X': return ImGuiKey_X; // for text edit CTRL+X: cut
+    case 'Y': return ImGuiKey_Y; // for text edit CTRL+Y: redo
+    case 'Z': return ImGuiKey_Z; // for text edit CTRL+Z: undo
+  }
+  
   return IMGUIKEY_NONE;
 }
     

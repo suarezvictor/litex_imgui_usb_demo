@@ -122,9 +122,9 @@ void setup()
  */ 
   printf("USB init...\n");
   USH.init( USB_Pins_Config, usb_msg_queue_buffer, sizeof(usb_msg_queue_buffer)/sizeof(usb_msg_queue_buffer[0]), my_USB_DetectCB, my_USB_PrintCB );
-  printf("USB init done\n");
   USH.setActivityBlinker(my_LedBlinkCB);
-  printf("setup done\n");
+  printf("USB init done\n");
+  //printf("setup done\n");
 }
 
 int mousewheel = 0; 
@@ -264,14 +264,9 @@ bool do_keybui_update(int modifiers, int key, bool pressed)
   }
   else
   {
+    keyevent = true;
     ImGuiKey imkey = scan2imguikey(key);
-    if(imkey != IMGUIKEY_NONE)
-    {
-      keyevent = true;
-      //io.AddKeyEvent(key, pressed);  //TODO: ImGui v1.88
-      io.KeyMap[imkey] = key; //setup keymap
-      io.KeysDown[key] = pressed;
-    }
+    io.KeysDown[key] = pressed;
     printf("KEY PRESS event, key 0x%02x, char '%c', imkey %d, modifiers 0x%02x\n", key, inputchar, imkey != IMGUIKEY_NONE ? imkey : -1, modifiers);
   }
     
@@ -358,7 +353,19 @@ void ui_init()
     IMGUI_CHECKVERSION();
     ImGui::SetAllocatorFunctions(custom_malloc, custom_free, nullptr);
     ImGui::CreateContext();
-    //ImGui::GetIO().MouseDrawCursor = true; //makes things hang up
+    ImGuiIO& io = ImGui::GetIO();
+    //io.MouseDrawCursor = true; //makes things hang up
+    //io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;   // We can honor GetMouseCursor() values (optional)
+
+    for(uint8_t key = 0; key < HID_KEY_MAX; ++key)
+    {
+      ImGuiKey imkey = scan2imguikey(key);
+      if(imkey != IMGUIKEY_NONE)
+      {
+        //printf("key 0x%02x -> imkey %d\n", key, imkey);
+        io.KeyMap[imkey] = key; //setup keymap
+      }
+    }
 
     imgui_sw::bind_imgui_painting();
     imgui_sw::make_style_fast();
