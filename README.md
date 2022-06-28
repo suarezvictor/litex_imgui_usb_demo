@@ -6,7 +6,7 @@ This is an implementation of a 100% software USB host stack for a LiteX SoC, and
 ## Hardware requirements
 * Referenced Arty board
 * a VGA PMOD (connectors B-C) or DVI adapter PMOD (connector C) 
-* a dual USB host PMOD on connector D (bottom row, inner to outer): D-, D+ for 1st port and D+, D- for 2nd (note inversion), [configurable in software](https://github.com/suarezvictor/LiteUSB/blob/main/src/usb.cpp#L10)
+* a dual USB host PMOD on connector D (bottom row, inner to outer): D-, D+ for 1st port and D+, D- for 2nd (note inversion), [configurable in software](https://github.com/suarezvictor/litex_imgui_usb_demo/blob/main/src/usb.cpp#L10)
 <br>
 
 ![image](https://user-images.githubusercontent.com/8551129/176054420-310e5b2a-df6b-4a10-93ef-5195bc66483f.png)
@@ -22,7 +22,7 @@ This is an implementation of a 100% software USB host stack for a LiteX SoC, and
 * Other libraries used are already put into the Libs folder
 
 ##  Building dependencies
-It's assumed you will use a folder with this and other repos, referenced as $REPOS_ROOT (so this project gets in $REPOS_ROOT/LiteUSB)
+It's assumed you will use a folder with this and other repos, referenced as $REPOS_ROOT (so this project gets in $REPOS_ROOT/litex_imgui_usb_demo)
 
 To build the RVfplib:
 ```
@@ -56,14 +56,14 @@ After this, a screen showing the random data of the framebuffer memory should ap
 
 ## Compiling the USB host and GUI demo
 ```
-cd $REPOS_ROOT/LiteUSB/src
+cd $REPOS_ROOT/litex_imgui_usb_demo/src
 make all
 litex_term --speed 1000000 --kernel usb_main.elf.bin /dev/ttyUSB1
 ```
 *NOTE: update the USB device to match your OS. The LiteX generated bitstream may need to be reloaded*
 
 ## Integrated dependencies
-Software that integrates the demo, related repos (with detailed commit history), and where sources are expected (assumes . = $REPOS_ROOT/LiteUSB/)
+Software that integrates the demo, related repos (with detailed commit history), and where sources are expected (assumes . = $REPOS_ROOT/litex_imgui_usb_demo/)
 <br>*NOTE: some of these project sources were modified to suit this requirements*
 
 ESP32 USB host:
