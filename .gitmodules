@@ -1,6 +1,3 @@
-[submodule "litex_sdk"]
-	path = Libs/litex_sdk
-	url = git@github.com:suarezvictor/litex_sdk.git
 [submodule "Libs/litex_sdk"]
 	path = Libs/litex_sdk
 	url = git@github.com:suarezvictor/litex_sdk.git
