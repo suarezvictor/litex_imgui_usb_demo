@@ -17,7 +17,7 @@ void /*NORETURN*/ hard_reset(void) { ctrl_reset_write(1); for(;;); } //TODO: mov
 void _putchar(char c) { uart_write(c); } //this is to make printf work
 
 
-#include <liblitesdk/litesdk_timer.h>
+#include <litesdk_timer.h>
 typedef void (*timer_isr_t)(void); //FIXME: redefinition
 timer_isr_t timer_handler = NULL;
 void timer0_isr(void)

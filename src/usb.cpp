@@ -189,7 +189,7 @@ void loop()
         static keyreport prev; //should be zero initialized by C runtime
         bool updateui = false;
         uint8_t key = HID_KEY_NOKEY;
-        for (int i = 0; i < sizeof(k.scancode); ++i)
+        for (uint8_t i = 0; i < sizeof(k.scancode); ++i)
         {
           bool pressed = true, released = true;
           if(k.scancode[i] == HID_KEY_ERROR)
@@ -197,7 +197,7 @@ void loop()
             key = HID_KEY_ERROR;
             break;
           }
-          for (int j = 0; j < sizeof(k.scancode); ++j)
+          for (uint8_t j = 0; j < sizeof(k.scancode); ++j)
           {
             if(k.scancode[i] == prev.scancode[j])
               pressed = false;

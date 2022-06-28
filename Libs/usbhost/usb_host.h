@@ -95,9 +95,10 @@ typedef xQueueHandle hal_queue_handle_t;
 
 #else //not __IMXRT1062__
 
-#include <liblitesdk/litesdk_gpio.h>
-#include <liblitesdk/litesdk_timer.h>
-#include <generated/soc.h>
+#include <litex.h>
+#include <litesdk_gpio.h>
+#include <litesdk_timer.h>
+
 #define GPIO_MODE_OUTPUT true
 #define GPIO_MODE_INPUT false
 #define USBHOST_GPIO litegpio0
@@ -175,8 +176,8 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 // any number less 127, but no zero
 #define  ASSIGNED_USB_ADDRESS    3
 
-void IRAM_ATTR printState(void);
-void IRAM_ATTR usb_process(void);
+void FAST_CODE printState(void);
+void FAST_CODE usb_process(void);
 hid_protocol_t usb_get_hid_proto(int usbNum);
 typedef void (*onusbmesscb_t)(uint8_t src,uint8_t len,uint8_t *data);
 void set_usb_mess_cb( onusbmesscb_t onUSBMessCb );

@@ -1815,19 +1815,21 @@ void FAST_CODE printState(void)
           sIntfDesc sIntf;
           memcpy(&sIntf,&pcurrent->descrBuffer[pos],len);
           #ifdef DEBUG_ALL
-          printf("\tsIntf.bLength \t\t= %02x\n",sIntf.bLength);
-          printf("\tsIntf.bType \t\t= %02x\n",sIntf.bType);
-          printf("\tsIntf.bEndPoints \t\t= %02x\n",sIntf.bEndPoints);
-          printf("\tsIntf.iClass \t\t= %02x\n",sIntf.iClass);
-          printf("\tsIntf.iSub \t\t= %02x\n",sIntf.iSub);
-          printf("\tsIntf.iProto \t\t= %02x\n",sIntf.iProto);
-          printf("\tsIntf.iIndex \t\t= %02x\n",sIntf.iIndex);
+            printf("\tsIntf.bLength \t\t= %02x\n",sIntf.bLength);
+            printf("\tsIntf.bType \t\t= %02x\n",sIntf.bType);
+            printf("\tsIntf.bEndPoints \t\t= %02x\n",sIntf.bEndPoints);
+            printf("\tsIntf.iClass \t\t= %02x\n",sIntf.iClass);
+            printf("\tsIntf.iSub \t\t= %02x\n",sIntf.iSub);
+            printf("\tsIntf.iProto \t\t= %02x\n",sIntf.iProto);
+            printf("\tsIntf.iIndex \t\t= %02x\n",sIntf.iIndex);
           #endif
 	    } else if (type == 0x21) {
           hidCount++;
           int i = hidCount-1;
           memcpy(&hid[i],&pcurrent->descrBuffer[pos],len);
-          printf("\thid[%d].bLength \t\t= %02x\n",i,hid[i].bLength);
+          #ifdef DEBUG_ALL
+            printf("\thid[%d].bLength \t\t= %02x\n",i,hid[i].bLength);
+          #endif
         } else if (type == 0x5) {
           //pcurrent->epCount++;
           sEPDesc epd;

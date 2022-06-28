@@ -3,13 +3,12 @@ USBHOST_DIR?=../Libs/usbhost
 FB_DIR=../Libs/litefb
 IMGUI_DIR=../Libs/imgui
 TINYUSB_SCR_DIR=../Libs/tinyusb
+LITEX_SDK_DIR?=../Libs/litex_sdk
 RVFPLIB?=../../RVfplib/
 
 include makefile.inc
 
-INC += -I$(USBHOST_DIR)
-INC += -I$(FB_DIR)
-INC += -I$(TINYUSB_SCR_DIR)
+INC += -I$(USBHOST_DIR) -I$(FB_DIR) -I$(TINYUSB_SCR_DIR) -I$(LITEX_SDK_DIR)
 #INC += -I$(BUILD_DIRECTORY)/software/include
 CCDEFS = -DIMGUI_USE_BGRA_PACKED_COLOR
 CXXFLAGS += $(CCDEFS) $(INC) -O2 -march=rv32im -mabi=ilp32

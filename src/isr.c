@@ -5,7 +5,7 @@
 #include <generated/soc.h>
 #include <irq.h>
 #include <libbase/uart.h>
-#include "common/tusb_common.h" //FIXME: just for FAST_CODE, move to a more global place
+#include <litex.h>
 
 void timer0_isr(void);
 
