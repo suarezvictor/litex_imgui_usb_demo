@@ -33,7 +33,7 @@ extern "C" {
 
 //#include "usb_host.h"
 #include "USBHost.hpp"
-
+hid_protocol_t hid_types[NUM_USB];
 
 static void my_USB_DetectCB( uint8_t usbNum, void * dev )
 {
@@ -54,13 +54,23 @@ static void my_USB_DetectCB( uint8_t usbNum, void * dev )
   // if( device->iProduct == mySupportedIdProduct && device->iManufacturer == mySupportedManufacturer ) {
   //   myListenUSBPort = usbNum;
   // }
+  
+  if(usbNum <= NUM_USB)
+  {
+    hid_protocol_t hid_protocol = usb_get_hid_proto(usbNum);
+    hid_types[usbNum] = hid_protocol;
+    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
+      printf("HID KEYBOARD DETECTED\n");
+    if(hid_protocol == USB_HID_PROTO_MOUSE)
+      printf("HID MOUSE DETECTED\n");
+  }
 }
 
 
 static void my_USB_PrintCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len)
 {
   // if( myListenUSBPort != usbNum ) return;
-  printf("in: ");
+  printf("USB %d in (HID type %d): ", usbNum, hid_types[usbNum]);
   for(int k=0;k<data_len;k++) {
     printf("0x%02x ", data[k] );
   }
@@ -143,9 +153,10 @@ void loop()
 
     struct USBMessage msg;
     while( hal_queue_receive(usb_msg_queue, &msg) ) {
+      int usbNum = msg.src/NUM_USB;
       if( printDataCB ) {
 #if 1//ndef USE_IMGUI      
-        printDataCB( msg.src/4, 32, msg.data, msg.len );
+        printDataCB(usbNum, 32, msg.data, msg.len );
 #endif
       }
 
@@ -169,9 +180,8 @@ void loop()
   }
 #endif
 
-
-      bool iskeybpacket = (msg.len == sizeof(keyreport)); // 'a' packet: 0x00 0x00 0x04 0x00 0x00 0x00 0x00 0x00 https://wiki.osdev.org/USB_Human_Interface_Devices#Report_format
-      bool ismousepacket = (msg.len == 6); //FIXME: too hacky a way of discriminating a mouse packet (HID spec allows just 3 bytes as valid, some mouses report 20 byte packets)
+      bool iskeybpacket = hid_types[usbNum] == USB_HID_PROTO_KEYBOARD && msg.len >= sizeof(keyreport); // 'a' packet: 0x00 0x00 0x04 0x00 0x00 0x00 0x00 0x00 https://wiki.osdev.org/USB_Human_Interface_Devices#Report_format
+      bool ismousepacket = hid_types[usbNum] == USB_HID_PROTO_MOUSE && msg.len >= 6;
 
       if(iskeybpacket)
       {

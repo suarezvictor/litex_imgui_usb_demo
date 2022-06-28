@@ -1,6 +1,16 @@
 #ifndef USB_HOST_H
 #define USB_HOST_H
 
+#define USB_HID_INTF_CLASS		0x03
+
+typedef enum
+{
+  USB_HID_PROTO_NONE = 0x00,
+  USB_HID_PROTO_KEYBOARD = 0x01,
+  USB_HID_PROTO_MOUSE = 0x02,
+} hid_protocol_t;
+
+
 #define USBHOST_SINGLE_CORE
 
 #ifndef USBHOST_SINGLE_CORE
@@ -167,6 +177,7 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 
 void IRAM_ATTR printState(void);
 void IRAM_ATTR usb_process(void);
+hid_protocol_t usb_get_hid_proto(int usbNum);
 typedef void (*onusbmesscb_t)(uint8_t src,uint8_t len,uint8_t *data);
 void set_usb_mess_cb( onusbmesscb_t onUSBMessCb );
 typedef void (*printcb_t)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);

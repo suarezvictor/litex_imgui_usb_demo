@@ -1399,7 +1399,7 @@ void FAST_CODE fsm_Mashine(void)
      current->fsm_state    = 101;
   } else if(current->fsm_state==101) {
     if(current->acc_decoded_resp_counter>=1) {
-      usbMess(current->selfNum*4+0,current->acc_decoded_resp_counter,current->acc_decoded_resp);
+      usbMess(current->selfNum*NUM_USB+0,current->acc_decoded_resp_counter,current->acc_decoded_resp);
       if( onLedBlinkCB ) onLedBlinkCB(1);
     }
     if(current->epCount>=2) {
@@ -1412,7 +1412,7 @@ void FAST_CODE fsm_Mashine(void)
      }
   } else if(current->fsm_state==102) {
      if(current->acc_decoded_resp_counter>=1) {
-       usbMess(current->selfNum*4+1,current->acc_decoded_resp_counter,current->acc_decoded_resp);
+       usbMess(current->selfNum*NUM_USB+1,current->acc_decoded_resp_counter,current->acc_decoded_resp);
        if( onLedBlinkCB ) onLedBlinkCB(1);
      }
     current->cmdTimeOut = 2;
@@ -1706,6 +1706,35 @@ void FAST_CODE usb_process(void)
   }
 }
 
+//FIXME: too verbose and some duplicated code
+hid_protocol_t usb_get_hid_proto(int usbNum)
+{
+  sUsbContStruct *pcurrent = &current_usb[usbNum];
+  if(pcurrent->desc.bDeviceClass != 0 || pcurrent->desc.bDeviceSubClass != 0)
+    return USB_HID_PROTO_NONE;
+  
+  for(int pos = 0; pos < pcurrent->descrBufferLen-2; )
+  {
+      uint8_t len  =  pcurrent->descrBuffer[pos];
+      uint8_t type =  pcurrent->descrBuffer[pos+1];
+      if(len==0)
+        pos = pcurrent->descrBufferLen;
+ 
+      if(pos+len<=pcurrent->descrBufferLen)
+      {
+        if (type == 0x4)
+        {
+          const sIntfDesc *sIntf = (const sIntfDesc*) &pcurrent->descrBuffer[pos];
+          if(sIntf->iClass == USB_HID_INTF_CLASS)
+            return sIntf->iProto;
+        }
+      }
+      pos+=len;
+  }
+
+  return USB_HID_PROTO_NONE;
+}
+
 void FAST_CODE printState(void)
 {
   static int FAST_DATA cntl = 0;
@@ -1735,11 +1764,11 @@ void FAST_CODE printState(void)
     if( onDetectCB ) {
       onDetectCB( ref, (void*)&pcurrent->desc );
     } else {
-      printf("desc.bcdDevice       = %02x\n",pcurrent->desc.bcdDevice);
-      printf("desc.iManufacturer   = %02x\n",pcurrent->desc.iManufacturer);
-      printf("desc.iProduct        = %02x\n",pcurrent->desc.iProduct);
-      printf("desc.iSerialNumber   = %02x\n",pcurrent->desc.iSerialNumber);
-      printf("desc.bNumConfigurations = %02x\n",pcurrent->desc.bNumConfigurations);
+      printf("desc.bcdDevice \t= %02x\n",pcurrent->desc.bcdDevice);
+      printf("desc.iManufacturer \t= %02x\n",pcurrent->desc.iManufacturer);
+      printf("desc.iProduct \t= %02x\n",pcurrent->desc.iProduct);
+      printf("desc.iSerialNumber \t= %02x\n",pcurrent->desc.iSerialNumber);
+      printf("desc.bNumConfigurations \t= %02x\n",pcurrent->desc.bNumConfigurations);
     }
 
   }
@@ -1777,30 +1806,40 @@ void FAST_CODE printState(void)
           sCfgDesc cfg;
           memcpy(&cfg,&pcurrent->descrBuffer[pos],len);
           #ifdef DEBUG_ALL
-            printf("cfg.wLength         = %02x\n",cfg.wLength);
-            printf("cfg.bNumIntf        = %02x\n",cfg.bNumIntf);
-            printf("cfg.bCV             = %02x\n",cfg.bCV);
-            printf("cfg.bMaxPower       = %d\n",cfg.bMaxPower);
+            printf("\tcfg.wLength \t\t= %02x\n",cfg.wLength);
+            printf("\tcfg.bNumIntf \t\t= %02x\n",cfg.bNumIntf);
+            printf("\tcfg.bCV \t\t= %02x\n",cfg.bCV);
+            printf("\tcfg.bMaxPower \t\t= %d\n",cfg.bMaxPower);
           #endif
         } else if (type == 0x4) {
           sIntfDesc sIntf;
           memcpy(&sIntf,&pcurrent->descrBuffer[pos],len);
-        } else if (type == 0x21) {
+          #ifdef DEBUG_ALL
+          printf("\tsIntf.bLength \t\t= %02x\n",sIntf.bLength);
+          printf("\tsIntf.bType \t\t= %02x\n",sIntf.bType);
+          printf("\tsIntf.bEndPoints \t\t= %02x\n",sIntf.bEndPoints);
+          printf("\tsIntf.iClass \t\t= %02x\n",sIntf.iClass);
+          printf("\tsIntf.iSub \t\t= %02x\n",sIntf.iSub);
+          printf("\tsIntf.iProto \t\t= %02x\n",sIntf.iProto);
+          printf("\tsIntf.iIndex \t\t= %02x\n",sIntf.iIndex);
+          #endif
+	    } else if (type == 0x21) {
           hidCount++;
           int i = hidCount-1;
           memcpy(&hid[i],&pcurrent->descrBuffer[pos],len);
+          printf("\thid[%d].bLength \t\t= %02x\n",i,hid[i].bLength);
         } else if (type == 0x5) {
           //pcurrent->epCount++;
           sEPDesc epd;
           memcpy(&epd,&pcurrent->descrBuffer[pos],len);
           #ifdef DEBUG_ALL
-            printf("pcurrent->epCount = %d\n",pcurrent->epCount);
-            printf("epd.bLength       = %02x\n",epd.bLength);
-            printf("epd.bType         = %02x\n",epd.bType);
-            printf("epd.bEPAdd        = %02x\n",epd.bEPAdd);
-            printf("epd.bAttr         = %02x\n",epd.bAttr);
-            printf("epd.wPayLoad      = %02x\n",epd.wPayLoad);
-            printf("epd.bInterval     = %02x\n",epd.bInterval);
+            printf("\tpcurrent->epCount \t= %d\n",pcurrent->epCount);
+            printf("\tepd.bLength \t\t= %02x\n",epd.bLength);
+            printf("\tepd.bType \t\t= %02x\n",epd.bType);
+            printf("\tepd.bEPAdd \t\t= %02x\n",epd.bEPAdd);
+            printf("\tepd.bAttr  \t\t= %02x\n",epd.bAttr);
+            printf("\tepd.wPayLoad \t\t= %02x\n",epd.wPayLoad);
+            printf("\tepd.bInterval \t\t= %02x\n",epd.bInterval);
           #endif
         }
       }
