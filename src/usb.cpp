@@ -1,5 +1,6 @@
 // This file is Copyright (c) 2021 Victor Suarez Rovere <suarezvictor@gmail.com>
 // License: BSD-2-Clause
+// Some code adapted from https://github.com/arduino-libraries/USBHost/blob/master/src/hidboot.cpp, licensed under GPL 2, (C) Circuits At Home, LTD
 
 //Current command for SoC generation:
 //$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6 --cpu-variant=full --build
@@ -175,7 +176,37 @@ void loop()
       if(iskeybpacket)
       {
         keyreport& k = *(keyreport*) msg.data;
-        if(do_keybui_update(k.modifier, k.scancode[0], k.scancode[0] != 0))
+        static keyreport prev; //should be zero initialized by C runtime
+        bool updateui = false;
+        uint8_t key = HID_KEY_NOKEY;
+        for (int i = 0; i < sizeof(k.scancode); ++i)
+        {
+          bool pressed = true, released = true;
+          if(k.scancode[i] == HID_KEY_ERROR)
+          {
+            key = HID_KEY_ERROR;
+            break;
+          }
+          for (int j = 0; j < sizeof(k.scancode); ++j)
+          {
+            if(k.scancode[i] == prev.scancode[j])
+              pressed = false;
+            if(prev.scancode[i] == k.scancode[j])
+              released = false;
+          }
+          if(pressed)
+              key = k.scancode[i];
+           if(released)
+              key = prev.scancode[i];
+
+          if(pressed || released)
+             updateui = do_keybui_update(k.modifier, key, pressed) || updateui;
+        }
+        if(key == HID_KEY_NOKEY)
+          updateui = do_keybui_update(k.modifier, HID_KEY_NOKEY, false) || updateui;
+        if(key != HID_KEY_ERROR)
+          prev = k;
+        if(updateui)
           break;
       }
       else if(ismousepacket)
@@ -228,11 +259,9 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 bool do_keybui_update(int modifiers, int key, bool pressed)
 {
   ImGuiIO& io = ImGui::GetIO();
-  //printf("KEY PRESS 0x%02x, modifiers 0x%02x\n", key, modifiers);
 
-  bool keyevent = false;
   char inputchar = '\0';
-  if(key > 0 && pressed)
+  if(key != HID_KEY_NOKEY)
   {
     switch(modifiers)
     {
@@ -247,12 +276,9 @@ bool do_keybui_update(int modifiers, int key, bool pressed)
           inputchar = usb_key_codesSHIFT[key];
         break;
     }
-  }
-  
-  if(inputchar)
-  {
-    io.AddInputCharacter(inputchar);
-    keyevent = true;
+    if(inputchar && pressed)
+      io.AddInputCharacter(inputchar);
+    io.KeysDown[key] = pressed;
   }
 
   io.KeyShift = 0 != (modifiers & (HID_LSHIFT_MASK | HID_RSHIFT_MASK));
@@ -260,21 +286,8 @@ bool do_keybui_update(int modifiers, int key, bool pressed)
   io.KeyAlt   = 0 != (modifiers & (HID_LALT_MASK | HID_RALT_MASK));
   io.KeySuper = 0 != (modifiers & (HID_LSUPER_MASK | HID_RSUPER_MASK));
 
-  if(!pressed)
-  {
-    keyevent = true;
-    memset(io.KeysDown, 0, sizeof(io.KeysDown)); //TODO: only clear released key
-    printf("KEY RELEASED event, key 0x%02x modifiers 0x%02x\n", key, modifiers);
-  }
-  else
-  {
-    keyevent = true;
-    ImGuiKey imkey = scan2imguikey(key);
-    io.KeysDown[key] = pressed;
-    printf("KEY PRESS event, key 0x%02x, char '%c', imkey %d, modifiers 0x%02x\n", key, inputchar, imkey != IMGUIKEY_NONE ? imkey : -1, modifiers);
-  }
-    
-  return keyevent;
+  printf("KEY %s event, key 0x%02x, char '%c', modifiers 0x%02x\n", pressed ? "PRESSED":"RELEASED", key, inputchar, modifiers);
+  return true;
 }
 
 uint8_t mousebuttons = 0;

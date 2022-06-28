@@ -90,8 +90,9 @@ https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2 (Public Doma
 #define HID_RSHIFT_MASK		0x20
 #define HID_RSUPER_MASK		0x80
 
-#define HID_KEY_A	4
-#define HID_KEY_Z	(HID_KEY_A+'Z'-'A') 
+#define HID_KEY_NOKEY		0
+#define HID_KEY_A			4
+#define HID_KEY_Z			(HID_KEY_A+'Z'-'A') 
 
 #define HID_KEY_ENTER		0x28 // Keyboard Return (ENTER)
 #define HID_KEY_ESC			0x29 // Keyboard ESCAPE
@@ -112,9 +113,10 @@ https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2 (Public Doma
 
 #define HID_KEY_KPENTER     0x58 // Keypad ENTER
 
+#define HID_KEY_ERROR		1
 #define HID_KEY_MAX			0x80
 
-static const char usb_key_codesPLAIN[]= { "\0\0\0\0abcdefghijklmnopqrtsuvwxyz1234567890\n\e\b\t _\0[]\\\0;'`,./" };
+static const char usb_key_codesPLAIN[]= { "\0\0\0\0abcdefghijklmnopqrstuvwxyz1234567890\n\e\b\t _\0[]\\\0;'`,./" };
 static const char usb_key_codesSHIFT[]= { "\0\0\0\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()\n\e\b\t _\0{}|\0:\"~<>?" };
 
 struct keyreport {
