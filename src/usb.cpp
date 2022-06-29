@@ -109,7 +109,7 @@ usb_pins_config_t USB_Pins_Config =
 extern "C" void loop();
 extern "C" void setup();
 bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel);
-bool do_keybui_update(int modifiers, int key, bool pressed);
+bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed);
 void ui_init();
 void do_ui();
 
@@ -266,7 +266,7 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 
 
 #ifdef USE_IMGUI
-bool do_keybui_update(int modifiers, int key, bool pressed)
+bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed)
 {
   ImGuiIO& io = ImGui::GetIO();
 
