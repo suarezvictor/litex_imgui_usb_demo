@@ -93,12 +93,12 @@ void fb_clear(void) {
      */ 
     blitter_value_write(0x000000);
     blitter_dma_writer_base_write((uint32_t)(fb_base));
-    blitter_dma_writer_length_write(FB_WIDTH*FB_HEIGHT*4);
+    blitter_dma_writer_length_write(FB_WIDTH*FB_HEIGHT*VIDEO_FRAMEBUFFER_DEPTH/8);
     blitter_dma_writer_enable_write(1);
     while(!blitter_dma_writer_done_read());
     blitter_dma_writer_enable_write(0);    
 #else
-    memset((void*)fb_base, 0, FB_WIDTH*FB_HEIGHT*4);
+    memset((void*)fb_base, 0, FB_WIDTH*FB_HEIGHT*VIDEO_FRAMEBUFFER_DEPTH/8);
 #endif    
 }
 
@@ -514,6 +514,7 @@ static int fb_clip(int nb_pts, int** poly) {
     return nb_pts;
 }
 
+#if 0 //disable poly until needed, to avoid issues with required buffers
 void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
 #warning large temp arrays are allocated on the stack (if not micropython does not get enough memory and raises "MemoryError")
     /*static*/ uint32_t x_left[FB_HEIGHT];
@@ -662,6 +663,7 @@ void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
     /* Wait end of DMA transfer for last line. */
     fb_hline_wait_dma();
 }
+#endif
 
 /******************************************************************************/
 #endif // CSR_VIDEO_FRAMEBUFFER_BASE

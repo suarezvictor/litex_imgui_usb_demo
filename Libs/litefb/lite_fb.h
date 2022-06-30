@@ -14,8 +14,8 @@
 
 /** \brief base memory address of the framebuffer */
 extern uint32_t* fb_base;
-#define FB_PAGE1 0x40c00000
-#define FB_PAGE2 0x40e00000
+#define FB_PAGE1 VIDEO_FRAMEBUFFER_BASE
+#define FB_PAGE2 (FB_PAGE1+VIDEO_FRAMEBUFFER_HRES*VIDEO_FRAMEBUFFER_HRES*VIDEO_FRAMEBUFFER_DEPTH/8)
 
 
 /**

@@ -340,11 +340,11 @@ void do_ui()
 
     //draw the mouse pointer as a cross
     fb_set_cliprect(0, 0, VIDEO_FRAMEBUFFER_HRES-1, VIDEO_FRAMEBUFFER_VRES-1);
-    fb_line(mousex-5, mousey, mousex+6, mousey, 0x00FF00);
-    fb_line(mousex, mousey-5, mousex, mousey+6, 0x00FF00);
+    fb_line(mousex-5, mousey, mousex+6, mousey, IM_COL32(0, 255, 0, 0));
+    fb_line(mousex, mousey-5, mousex, mousey+6, IM_COL32(0, 255, 0, 0));
 
     fb_swap_buffers();
-    fb_fillrect(10, 10, VIDEO_FRAMEBUFFER_HRES-10, VIDEO_FRAMEBUFFER_VRES-10, bgcolor);
+    fb_fillrect(0, 0, VIDEO_FRAMEBUFFER_HRES-1, VIDEO_FRAMEBUFFER_VRES-1, bgcolor);
     //fb_clear();
 }
 
