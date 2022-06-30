@@ -665,6 +665,15 @@ void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
 }
 #endif
 
+
+void fb_filltriangle(int v0x, int v0y, int v1x, int v1y, int v2x, int v2y, uint32_t c)
+{
+    //FIXME: this just draws two rectangles instead of a triangle
+	fb_fillrect(v1x, v1y, v2x, v0y, c^0x00FFFF);
+	fb_fillrect(v0x, v1y, v2x, v0y, c^0xFFFF00);
+}
+
+
 /******************************************************************************/
 #endif // CSR_VIDEO_FRAMEBUFFER_BASE
 

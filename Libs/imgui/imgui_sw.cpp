@@ -494,6 +494,19 @@ void paint_triangle(
 	max_x_i = std::min(max_x_i, target.width);
 	max_y_i = std::min(max_y_i, target.height);
 
+	const bool has_uniform_color = (v0.col == v1.col && v0.col == v2.col);
+
+#ifdef EXPERIMENTAL_OPTIMIZATIONS
+    if(has_uniform_color /*&& !texture*/ )
+    {
+      if(max_x_i - min_x_i <= 2) //vertical lines
+        fb_fillrect(min_x_i, min_y_i, max_x_i-1, max_y_i, v0.col);
+      else
+        fb_filltriangle(lround(v0.pos.x), lround(v0.pos.y), lround(v1.pos.x), lround(v1.pos.y), lround(v2.pos.x), lround(v2.pos.y), v0.col);
+    }
+    return;
+#endif
+
 	// ------------------------------------------------------------------------
 	// Set up interpolation of barycentric coordinates:
 
@@ -540,8 +553,6 @@ void paint_triangle(
 
 	// ------------------------------------------------------------------------
 
-	const bool has_uniform_color = (v0.col == v1.col && v0.col == v2.col);
-
 	const ImVec4 c0 = color_convert_u32_to_float4(v0.col);
 	const ImVec4 c1 = color_convert_u32_to_float4(v1.col);
 	const ImVec4 c2 = color_convert_u32_to_float4(v2.col);
@@ -550,13 +561,6 @@ void paint_triangle(
 	uint32_t last_target_pixel = 0;
 	uint32_t last_output = blend(ColorInt(last_target_pixel), ColorInt(v0.col)).toUint32();
 
-#ifdef EXPERIMENTAL_OPTIMIZATIONS
-    if(has_uniform_color /*&& !texture*/ && max_x_i - min_x_i <= 2) //vertical lines
-    {
-      fb_fillrect(min_x_i, min_y_i, max_x_i-1, max_y_i, v0.col);
-    }
-    return;
-#endif
   
 	for (int y = min_y_i; y < max_y_i; ++y) {
 		auto bary = bary_current_row;
