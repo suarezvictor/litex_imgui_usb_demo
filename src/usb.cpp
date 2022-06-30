@@ -17,9 +17,8 @@
 #define USE_IMGUI
 
 //mouse acceleration (seems required for high FPS)
-#define MOUSE_ACCEL_FACTOR 0.4 //enable mouse acceleration
-#define MOUSE_ACCEL_SMOOTH 0.1 //avoid jumps in speed
-#define MOUSE_ACCEL_LIMIT 30 //limit acceleration (mouse pixel units)
+#define MOUSE_ACCEL_FACTOR (0.9/60) //enable mouse acceleration
+#define MOUSE_ACCEL_SMOOTH .05 //avoid jumps in speed
 
 #include <stdint.h>
 #include <stdio.h>
@@ -151,14 +150,18 @@ int mousewheel = 0;
 
 void loop()
 {
+    static uint64_t t0 = micros();
+    uint64_t t1 = micros();
+    float dt = (t1-t0)*1e-6;
+    t0 = t1;
+
     printState();
     /*int msgcount = tu_fifo_count(&usb_msg_queue);
     if(msgcount)
       printf("Elements in FIFO: %d\n", msgcount);*/
 
     bool had_mousepacket = false;
-    static float mouseaccelx = 0;
-    static float mouseaccely = 0;
+    static float mouseaccel = 0;
 
     struct USBMessage msg;
     while( hal_queue_receive(usb_msg_queue, &msg) ) {
@@ -239,23 +242,18 @@ void loop()
         int16_t dy = ((msg.data[3] & 0xff) << 4) | ((msg.data[2] >> 4) & 0x0f); dy <<= 4; dy >>= 4; //sign correction
 		int16_t wheel = (int8_t) msg.data[4];
 		        
-#ifdef MOUSE_ACCEL_FACTOR
-         //cuadratic acceleration
-        mouseaccelx = (1.-MOUSE_ACCEL_SMOOTH)*mouseaccelx + MOUSE_ACCEL_SMOOTH*labs(dx)*dx;
-        mouseaccely = (1.-MOUSE_ACCEL_SMOOTH)*mouseaccely + MOUSE_ACCEL_SMOOTH*labs(dy)*dy;
-        if(abs(mouseaccelx) > MOUSE_ACCEL_LIMIT) mouseaccelx = mouseaccelx < 0 ? -MOUSE_ACCEL_LIMIT : MOUSE_ACCEL_LIMIT;
-        if(abs(mouseaccely) > MOUSE_ACCEL_LIMIT) mouseaccely = mouseaccely < 0 ? -MOUSE_ACCEL_LIMIT : MOUSE_ACCEL_LIMIT;
-        if(dx == 0 && dy == 0)
-          mouseaccelx = mouseaccely = 0;
-        else
-        {
-          dx += mouseaccelx*MOUSE_ACCEL_FACTOR;
-          dy += mouseaccely*MOUSE_ACCEL_FACTOR;
-        }
-#endif
         //coordinate update
+#ifdef MOUSE_ACCEL_FACTOR
+        //cuadratic acceleration
+        float mspeed = sqrt(dx*dx+dy*dy)*MOUSE_ACCEL_FACTOR/dt;
+        float acc = (1.-MOUSE_ACCEL_SMOOTH)*mouseaccel + MOUSE_ACCEL_SMOOTH*mspeed;
+        if(acc > mouseaccel) mouseaccel = acc; //deceleration has priority
+        x += dx + dx*mouseaccel;
+        y += dy + dy*mouseaccel;
+#else
         x += dx;
         y += dy;
+#endif
         mousewheel += wheel;
         if(x < 0) x = 0;
         if(x >= FB_WIDTH) x = FB_WIDTH-1; 
@@ -272,17 +270,13 @@ void loop()
     }
 
     if(!had_mousepacket)
-      mouseaccelx = mouseaccely = 0;
+      mouseaccel = 0;
 
 
-  {
-    static int i = 0;
-    static uint64_t t0 = micros();
-    uint64_t t1 = micros();
-    if(!(++i % 100))
-      printf("FPS %.1f\n", 1.e6/(t1-t0));
-    t0 = t1;
-  }
+    static int frame = 0;
+    if(!(++frame % 100))
+      printf("FPS %.1f\n", 1./dt);
+
 
     do_ui();
     mousewheel = 0; 
