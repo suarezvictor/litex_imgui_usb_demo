@@ -274,7 +274,7 @@ void loop()
 
 
     static int frame = 0;
-    if(!(++frame % 100))
+    if(!(++frame % 60))
       printf("FPS %.1f\n", 1./dt);
 
 
