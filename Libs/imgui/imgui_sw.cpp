@@ -4,6 +4,10 @@
 //   license: you are granted a perpetual, irrevocable license to copy, modify,
 //   publish, and distribute this file as you see fit.
 
+// (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+ 
+#define EXPERIMENTAL_OPTIMIZATIONS
+
 #include "imgui_sw.h"
 #include "imgui.h"
 extern "C" {
@@ -299,6 +303,36 @@ void paint_uniform_rectangle(
 	}
 }
 
+bool blit_font(const PaintTarget& target, const Texture& texture,
+ImVec2 current_uv, ImVec2 uv_topleft,  
+  int min_x_i, int max_x_i, int min_y_i, int max_y_i, ImU32 col)
+{
+	int ty = static_cast<int>(current_uv.y * (texture.height - 1.0f) + 0.5f);
+    int tx = static_cast<int>(uv_topleft.x* (texture.width  - 1.0f)  + 0.5f);
+	for (int y = min_y_i; y < max_y_i; ++y, ++ty) {
+	/*
+		for (int x = min_x_i; x < max_x_i; ++x) {
+			uint32_t& target_pixel = target.pixels[y * target.width + x];
+			const uint8_t texel = texture.pixels[ty * texture.width + tx];
+			if (texel == 0) { continue; }
+			target_pixel = col;
+		}
+		*/
+	const uint8_t *texel = &texture.pixels[ty * texture.width + tx];
+		uint32_t *target_pixel = &target.pixels[y * target.width + min_x_i];	
+		for (int x = min_x_i; x < max_x_i; ++x) {
+			switch(*texel++)
+			{
+				case 255:*target_pixel++ = col; continue;
+				case 0: ++target_pixel; continue;
+			}
+			return false;
+		}
+	}
+	
+	return true;
+}
+
 void paint_uniform_textured_rectangle(
 	const PaintTarget& target,
 	const Texture&     texture,
@@ -375,7 +409,13 @@ void paint_uniform_textured_rectangle(
 		min_v.uv.y + (topleft.y - min_v.pos.y) * delta_uv_per_pixel.y,
 	};
 	ImVec2 current_uv = uv_topleft;
-
+#ifdef EXPERIMENTAL_OPTIMIZATIONS
+  if(target.scale.x == 1. && target.scale.y == 1.)
+  {
+    if(blit_font(target, texture, current_uv, uv_topleft, min_x_i,max_x_i, min_y_i, max_y_i, min_v.col))
+      return;
+  }
+#endif
 	for (int y = min_y_i; y < max_y_i; ++y, current_uv.y += delta_uv_per_pixel.y) {
 		current_uv.x = uv_topleft.x;
 		for (int x = min_x_i; x < max_x_i; ++x, current_uv.x += delta_uv_per_pixel.x) {
@@ -505,6 +545,14 @@ void paint_triangle(
 	uint32_t last_target_pixel = 0;
 	uint32_t last_output = blend(ColorInt(last_target_pixel), ColorInt(v0.col)).toUint32();
 
+#ifdef EXPERIMENTAL_OPTIMIZATIONS
+    if(has_uniform_color /*&& !texture*/ && max_x_i <= min_x_i+2)
+    {
+      fb_fillrect(min_x_i, min_y_i, max_x_i, max_y_i, ColorInt(v0.col).toUint32());
+    }
+    return;
+#endif
+  
 	for (int y = min_y_i; y < max_y_i; ++y) {
 		auto bary = bary_current_row;
 

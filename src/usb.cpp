@@ -240,7 +240,7 @@ void loop()
         if(do_mouseui_update(x, y, buttons, mousewheel))
         {
 #if 1//ndef USE_IMGUI         
-          printf("x %d (%+d), y %d (%+d), dy %d buttons 0x%02X wheel %d (%+d)\n", x, dx, y, dy, buttons, mousewheel, wheel);
+          printf("x %d (%+d), y %d (%+d), buttons 0x%02X wheel %d (%+d)\n", x, dx, y, dy, buttons, mousewheel, wheel);
 #endif
           break;
         }
