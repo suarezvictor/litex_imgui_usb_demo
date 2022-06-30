@@ -5,6 +5,7 @@
 //   publish, and distribute this file as you see fit.
 
 // (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+// (C) 2020 Bruno Levy (BSD 3-Clause "New" or "Revised" License)
  
 #define EXPERIMENTAL_OPTIMIZATIONS
 
@@ -267,6 +268,7 @@ void paint_uniform_rectangle(
 
 	stats->uniform_rectangle_pixels += (max_x_i - min_x_i) * (max_y_i - min_y_i);
 
+#ifdef EXPERIMENTAL_OPTIMIZATIONS
         // [BL] no transparency -> fast fillrect 
 	if(color.a == 255) {
 	   uint32_t  c = color.toUint32();
@@ -284,6 +286,7 @@ void paint_uniform_rectangle(
 	   */ 
 	   return;
 	}
+#endif
       
 	// We often blend the same colors over and over again, so optimize for this (saves 25% total cpu):
 	uint32_t last_target_pixel = target.pixels[min_y_i * target.width + min_x_i];
@@ -376,6 +379,7 @@ void paint_uniform_textured_rectangle(
 
 	stats->font_pixels += (max_x_i - min_x_i) * (max_y_i - min_y_i);
 
+#ifdef EXPERIMENTAL_OPTIMIZATIONS
         // [BL] optimization if single uv texture coord, lookup texture
 	// color and do uniform fillrect
         if(min_v.uv == max_v.uv) {
@@ -396,6 +400,7 @@ void paint_uniform_textured_rectangle(
 	   */ 
 	   return;
 	}
+#endif
    
 	const auto topleft = ImVec2(min_x_i + 0.5f * target.scale.x,
 	                            min_y_i + 0.5f * target.scale.y);
@@ -410,7 +415,7 @@ void paint_uniform_textured_rectangle(
 	};
 	ImVec2 current_uv = uv_topleft;
 #ifdef EXPERIMENTAL_OPTIMIZATIONS
-  if(target.scale.x == 1. && target.scale.y == 1.)
+  if(target.scale.x == 1. && target.scale.y == 1. && (min_v.col >> IM_COL32_A_SHIFT) == 255)
   {
     if(blit_font(target, texture, current_uv, uv_topleft, min_x_i,max_x_i, min_y_i, max_y_i, min_v.col))
       return;
@@ -546,9 +551,9 @@ void paint_triangle(
 	uint32_t last_output = blend(ColorInt(last_target_pixel), ColorInt(v0.col)).toUint32();
 
 #ifdef EXPERIMENTAL_OPTIMIZATIONS
-    if(has_uniform_color /*&& !texture*/ && max_x_i <= min_x_i+2)
+    if(has_uniform_color /*&& !texture*/ && max_x_i - min_x_i <= 2) //vertical lines
     {
-      fb_fillrect(min_x_i, min_y_i, max_x_i, max_y_i, ColorInt(v0.col).toUint32());
+      fb_fillrect(min_x_i, min_y_i, max_x_i-1, max_y_i, v0.col);
     }
     return;
 #endif
