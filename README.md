@@ -46,6 +46,8 @@ To generate the bitstream, tweak the .py file and run one of the following comma
 <br>(with DVI=False, 640x480@60Hz)
 <br>```./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6     --cpu-type=vexriscv --cpu-variant=full --build```
 <br>
+*NOTE: VGA output needs this [patch](https://github.com/enjoy-digital/litex/issues/1349)*
+<br>
 <br>(with DVI=True,  800x600@50Hz)
 <br>```./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build```
 
