@@ -516,9 +516,8 @@ static int fb_clip(int nb_pts, int** poly) {
 
 #if 0 //disable poly until needed, to avoid issues with required buffers
 void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
-#warning large temp arrays are allocated on the stack (if not micropython does not get enough memory and raises "MemoryError")
-    /*static*/ uint32_t x_left[FB_HEIGHT];
-    /*static*/ uint32_t x_right[FB_HEIGHT];
+    static uint32_t x_left[FB_HEIGHT];
+    static uint32_t x_right[FB_HEIGHT];
 
     /* determine miny, maxy */
     int clockwise = 0;
@@ -668,9 +667,17 @@ void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
 
 void fb_filltriangle(int v0x, int v0y, int v1x, int v1y, int v2x, int v2y, uint32_t c)
 {
-    //FIXME: this just draws two rectangles instead of a triangle
-	fb_fillrect(v1x, v1y, v2x, v0y, c^0x00FFFF);
-	fb_fillrect(v0x, v1y, v2x, v0y, c^0xFFFF00);
+	/*fb_fillrect(v1x, v1y, v2x, v0y, c^0x00FFFF); //normally left part
+	fb_fillrect(v0x, v1y, v2x, v0y, c^0xFFFF00); //normally right part
+	*/
+	/*
+	fb_poly_mode = FB_POLY_LINES;
+	int pts[]={v0x, v0y, v1x, v1y, v2x, v2y};
+	fb_fill_poly(3, pts, c);
+	*/
+	fb_line(v0x, v0y, v1x, v1y, c);
+	fb_line(v1x, v1y, v2x, v2y, c);
+	fb_line(v2x, v2y, v0x, v0y, c);
 }
 
 

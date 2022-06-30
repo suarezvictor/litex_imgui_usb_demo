@@ -503,8 +503,8 @@ void paint_triangle(
         fb_fillrect(min_x_i, min_y_i, max_x_i-1, max_y_i, v0.col);
       else
         fb_filltriangle(lround(v0.pos.x), lround(v0.pos.y), lround(v1.pos.x), lround(v1.pos.y), lround(v2.pos.x), lround(v2.pos.y), v0.col);
+      return;
     }
-    return;
 #endif
 
 	// ------------------------------------------------------------------------
