@@ -671,11 +671,12 @@ void fb_horizline(int x1, int x2, int y, uint32_t c)
     if(x2 < x1) int_swap(x1, x2);  
 
     uint32_t* line_ptr = fb_pixel_address(x1,y);
-    /*
-    for(int x=x1; x<=x2; ++x)
+#if 1
+    for(int x=x1; x<=x2; ++x) //this seems faster
 	 *line_ptr++ = c;
-	*/
+#else
 	fb_hline(line_ptr, x2-x1+1, c);
+#endif
 }
 
 void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, float v2y, uint32_t c)
