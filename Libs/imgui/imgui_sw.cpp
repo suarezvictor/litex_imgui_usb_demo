@@ -502,7 +502,7 @@ void paint_triangle(
       if(max_x_i - min_x_i <= 2) //vertical lines
         fb_fillrect(min_x_i, min_y_i, max_x_i-1, max_y_i, v0.col);
       else
-        fb_filltriangle(int(p0.x), int(p0.y), int(p1.x), int(p1.y), int(p2.x), int(p2.y), v0.col);
+        fb_filltriangle(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, v0.col);
       return;
     }
 #endif

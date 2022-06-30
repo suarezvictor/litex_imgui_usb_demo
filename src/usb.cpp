@@ -241,12 +241,17 @@ void loop()
 		        
 #ifdef MOUSE_ACCEL_FACTOR
          //cuadratic acceleration
-        mouseaccelx = (1-MOUSE_ACCEL_SMOOTH)*mouseaccelx + MOUSE_ACCEL_SMOOTH*labs(dx)*dx;
-        mouseaccely = (1-MOUSE_ACCEL_SMOOTH)*mouseaccely + MOUSE_ACCEL_SMOOTH*labs(dy)*dy;
-        if(mouseaccelx > MOUSE_ACCEL_LIMIT) mouseaccelx = MOUSE_ACCEL_LIMIT;
-        if(mouseaccely > MOUSE_ACCEL_LIMIT) mouseaccely = MOUSE_ACCEL_LIMIT;
-        dx += mouseaccelx*MOUSE_ACCEL_FACTOR;
-        dy += mouseaccely*MOUSE_ACCEL_FACTOR;
+        mouseaccelx = (1.-MOUSE_ACCEL_SMOOTH)*mouseaccelx + MOUSE_ACCEL_SMOOTH*labs(dx)*dx;
+        mouseaccely = (1.-MOUSE_ACCEL_SMOOTH)*mouseaccely + MOUSE_ACCEL_SMOOTH*labs(dy)*dy;
+        if(abs(mouseaccelx) > MOUSE_ACCEL_LIMIT) mouseaccelx = mouseaccelx < 0 ? -MOUSE_ACCEL_LIMIT : MOUSE_ACCEL_LIMIT;
+        if(abs(mouseaccely) > MOUSE_ACCEL_LIMIT) mouseaccely = mouseaccely < 0 ? -MOUSE_ACCEL_LIMIT : MOUSE_ACCEL_LIMIT;
+        if(dx == 0 && dy == 0)
+          mouseaccelx = mouseaccely = 0;
+        else
+        {
+          dx += mouseaccelx*MOUSE_ACCEL_FACTOR;
+          dy += mouseaccely*MOUSE_ACCEL_FACTOR;
+        }
 #endif
         //coordinate update
         x += dx;

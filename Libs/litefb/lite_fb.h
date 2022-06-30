@@ -182,7 +182,7 @@ void fb_set_poly_culling(PolyCulling culling);
  */ 
 void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB);
 
-void fb_filltriangle(int v0x, int v0y, int v1x, int v1y, int v2x, int v2y, uint32_t c);
+void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, float v2y, uint32_t c);
 
 #endif // CSR_VIDEO_FRAMEBUFFER_BASE
 
