@@ -16,11 +16,6 @@ ImColor do_test_ui()
   ImGui::SetNextWindowPos(ImVec2(300, 200));        
   ImGui::Begin("FPS");
   ImGui::Text("%d", int(io.Framerate));
-  {
-  static int i = 0;
-  if(!(++i % 100))
-    printf("FPS %f\n", io.Framerate);
-  }
   ImGui::End();
 #endif
 #if 1

@@ -666,21 +666,18 @@ void fb_fill_poly(uint32_t nb_pts, int* points, uint32_t RGB) {
 
 #define int_swap(a, b) { a = a ^ b; b = b ^ a; a = a ^ b; }
 
-void horizline(int x1, int x2, int y, uint32_t color)
+void fb_horizline(int x1, int x2, int y, uint32_t c)
 {
     if(x2 < x1) int_swap(x1, x2);  
 
     uint32_t* line_ptr = fb_pixel_address(x1,y);
+    /*
     for(int x=x1; x<=x2; ++x)
-	 *line_ptr++ = color;
+	 *line_ptr++ = c;
+	*/
+	fb_hline(line_ptr, x2-x1+1, c);
 }
 
-void fswap(float *a, float *b)
-{
-  float x = *a;
-  *a = *b;
-  *b = x;
-}
 void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, float v2y, uint32_t c)
 {
     //https://www.codegrepper.com/code-examples/c/how+to+fill+a+triangle+in+c
@@ -752,7 +749,7 @@ void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, floa
 	next2:
 		if(minx>t1x) minx=t1x; if(minx>t2x) minx=t2x;
 		if(maxx<t1x) maxx=t1x; if(maxx<t2x) maxx=t2x;
-	   	horizline(minx, maxx, y, c);    // Draw line from min to max points found on the y
+	   	fb_horizline(minx, maxx, y, c);    // Draw line from min to max points found on the y
 		// Now increase y
 		if(!changed1) t1x += signx1;
 		t1x+=t1xp;
@@ -807,7 +804,7 @@ void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, floa
 
 		if(minx>t1x) minx=t1x; if(minx>t2x) minx=t2x;
 		if(maxx<t1x) maxx=t1x; if(maxx<t2x) maxx=t2x;
-	   	horizline(minx, maxx, y, c);    // Draw line from min to max points found on the y
+	   	fb_horizline(minx, maxx, y, c);    // Draw line from min to max points found on the y
 		// Now increase y
 		if(!changed1) t1x += signx1;
 		t1x+=t1xp;

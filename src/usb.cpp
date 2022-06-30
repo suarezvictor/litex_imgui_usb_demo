@@ -274,6 +274,16 @@ void loop()
     if(!had_mousepacket)
       mouseaccelx = mouseaccely = 0;
 
+
+  {
+    static int i = 0;
+    static uint64_t t0 = micros();
+    uint64_t t1 = micros();
+    if(!(++i % 100))
+      printf("FPS %.1f\n", 1.e6/(t1-t0));
+    t0 = t1;
+  }
+
     do_ui();
     mousewheel = 0; 
 }
