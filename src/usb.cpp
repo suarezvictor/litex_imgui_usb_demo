@@ -16,6 +16,11 @@
 //#define DEBUG_ALL
 #define USE_IMGUI
 
+//mouse acceleration (seems required for high FPS)
+#define MOUSE_ACCEL_FACTOR 0.4 //enable mouse acceleration
+#define MOUSE_ACCEL_SMOOTH 0.1 //avoid jumps in speed
+#define MOUSE_ACCEL_LIMIT 30 //limit acceleration (mouse pixel units)
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -151,6 +156,10 @@ void loop()
     if(msgcount)
       printf("Elements in FIFO: %d\n", msgcount);*/
 
+    bool had_mousepacket = false;
+    static float mouseaccelx = 0;
+    static float mouseaccely = 0;
+
     struct USBMessage msg;
     while( hal_queue_receive(usb_msg_queue, &msg) ) {
       int usbNum = msg.src/NUM_USB;
@@ -221,6 +230,7 @@ void loop()
       }
       else if(ismousepacket)
       {
+        had_mousepacket = true;
         static int x = FB_WIDTH/2, y = FB_HEIGHT/2;
         //packet decoding in 12-bit values (some mouses reports 8 bit values)
         //see https://forum.pjrc.com/threads/45740-USB-Host-Mouse-Driver
@@ -229,6 +239,15 @@ void loop()
         int16_t dy = ((msg.data[3] & 0xff) << 4) | ((msg.data[2] >> 4) & 0x0f); dy <<= 4; dy >>= 4; //sign correction
 		int16_t wheel = (int8_t) msg.data[4];
 		        
+#ifdef MOUSE_ACCEL_FACTOR
+         //cuadratic acceleration
+        mouseaccelx = (1-MOUSE_ACCEL_SMOOTH)*mouseaccelx + MOUSE_ACCEL_SMOOTH*labs(dx)*dx;
+        mouseaccely = (1-MOUSE_ACCEL_SMOOTH)*mouseaccely + MOUSE_ACCEL_SMOOTH*labs(dy)*dy;
+        if(mouseaccelx > MOUSE_ACCEL_LIMIT) mouseaccelx = MOUSE_ACCEL_LIMIT;
+        if(mouseaccely > MOUSE_ACCEL_LIMIT) mouseaccely = MOUSE_ACCEL_LIMIT;
+        dx += mouseaccelx*MOUSE_ACCEL_FACTOR;
+        dy += mouseaccely*MOUSE_ACCEL_FACTOR;
+#endif
         //coordinate update
         x += dx;
         y += dy;
@@ -246,6 +265,9 @@ void loop()
         }
       }
     }
+
+    if(!had_mousepacket)
+      mouseaccelx = mouseaccely = 0;
 
     do_ui();
     mousewheel = 0; 
