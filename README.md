@@ -2,6 +2,9 @@
 This is an implementation of a 100% software USB host stack for a LiteX SoC, and a GUI demo based on Dear ImGui library both running on the same CPU. It currently supports the Digilent Arty A7 board implementing a VexRiscv soft-core CPU running at 166/200MHz, and a mouse and keyboard (low-speed mode) working simultaneously.
 <br><br>
 ![image](https://user-images.githubusercontent.com/8551129/176732299-91035c6c-ece9-455d-8edf-91b09ea17ca9.png)
+![image](https://user-images.githubusercontent.com/8551129/176739910-51e47452-531c-44e8-bc4a-274f3dde245b.png)
+
+
 
 ## Hardware requirements
 * Referenced Arty board
