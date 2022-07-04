@@ -3,11 +3,12 @@ ImColor do_test_ui()
   ImGuiIO& io = ImGui::GetIO();
 
   static int color_r = 0x80, color_g = 0, color_b = 0;
-#if 1
+#if 0
   ImGui::ShowDemoWindow(NULL); //tested working
 #endif
 
-#if 0
+#if 1
+  ImGui::SetNextWindowPos(ImVec2(100, 100));        
   ImGui::SetNextWindowSize(ImVec2(180, 100));
   ImGui::Begin("Color");
   ImGui::SliderInt("R", &color_r, 0, 255);
@@ -16,7 +17,7 @@ ImColor do_test_ui()
   ImGui::End();
 #endif
 
-#if 0
+#if 1
   static char inputstr[128] = ""; //initial value
   ImGui::SetNextWindowPos(ImVec2(200, 300));        
   ImGui::SetNextWindowSize(ImVec2(180, 60));
@@ -31,7 +32,7 @@ ImColor do_test_ui()
 #if 1
   ImGui::SetNextWindowPos(ImVec2(500, 100));        
   ImGui::Begin("FPS");
-  ImGui::Text("%d", int(io.Framerate));
+  ImGui::Text("%d", int(io.Framerate+.5));
   ImGui::End();
 #endif
 
