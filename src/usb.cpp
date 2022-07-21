@@ -37,49 +37,7 @@ extern "C" {
 
 //#include "usb_host.h"
 #include "USBHost.hpp"
-hid_protocol_t hid_types[NUM_USB];
 
-static void my_USB_DetectCB( uint8_t usbNum, void * dev )
-{
-  sDevDesc *device = (sDevDesc*)dev;
-  printf("New device detected on USB#%d\n", usbNum);
-  printf("desc.bcdUSB             = 0x%04x\n", device->bcdUSB);
-  printf("desc.bDeviceClass       = 0x%02x\n", device->bDeviceClass);
-  printf("desc.bDeviceSubClass    = 0x%02x\n", device->bDeviceSubClass);
-  printf("desc.bDeviceProtocol    = 0x%02x\n", device->bDeviceProtocol);
-  printf("desc.bMaxPacketSize0    = 0x%02x\n", device->bMaxPacketSize0);
-  printf("desc.idVendor           = 0x%04x\n", device->idVendor);
-  printf("desc.idProduct          = 0x%04x\n", device->idProduct);
-  printf("desc.bcdDevice          = 0x%04x\n", device->bcdDevice);
-  printf("desc.iManufacturer      = 0x%02x\n", device->iManufacturer);
-  printf("desc.iProduct           = 0x%02x\n", device->iProduct);
-  printf("desc.iSerialNumber      = 0x%02x\n", device->iSerialNumber);
-  printf("desc.bNumConfigurations = 0x%02x\n", device->bNumConfigurations);
-  // if( device->iProduct == mySupportedIdProduct && device->iManufacturer == mySupportedManufacturer ) {
-  //   myListenUSBPort = usbNum;
-  // }
-  
-  if(usbNum <= NUM_USB)
-  {
-    hid_protocol_t hid_protocol = usb_get_hid_proto(usbNum);
-    hid_types[usbNum] = hid_protocol;
-    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
-      printf("HID KEYBOARD DETECTED\n");
-    if(hid_protocol == USB_HID_PROTO_MOUSE)
-      printf("HID MOUSE DETECTED\n");
-  }
-}
-
-
-static void my_USB_PrintCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len)
-{
-  // if( myListenUSBPort != usbNum ) return;
-  printf("USB %d in (HID type %d): ", usbNum, hid_types[usbNum]);
-  for(int k=0;k<data_len;k++) {
-    printf("0x%02x ", data[k] );
-  }
-  printf("\n");
-}
 
 #ifdef DEBUG_ALL
 extern volatile uint8_t received_NRZI_buffer_bytesCnt;
