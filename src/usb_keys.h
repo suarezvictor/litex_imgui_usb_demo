@@ -137,6 +137,7 @@ struct keyreport {
   uint8_t scancode[6];
 };
 
+#ifdef USBHOST_USE_IMGUI
 #define IMGUIKEY_NONE ImGuiKey_COUNT //TODO: fix for v.188
 
 static ImGuiKey scan2imguikey(uint8_t scancode)
@@ -172,6 +173,7 @@ static ImGuiKey scan2imguikey(uint8_t scancode)
   
   return IMGUIKEY_NONE;
 }
+#endif //USBHOST_USE_IMGUI
     
 #endif // _USB_KEYS_H_
 

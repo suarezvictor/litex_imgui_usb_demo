@@ -14,7 +14,7 @@
 #define DM_P1  15 //D-
 
 //#define DEBUG_ALL
-#define USE_IMGUI
+#define USBHOST_USE_IMGUI
 
 //mouse acceleration (seems required for high FPS)
 #define MOUSE_ACCEL_FACTOR (0.9/60) //enable mouse acceleration
@@ -26,11 +26,11 @@
 extern "C" {
 #include "lite_fb.h"
 }
-#ifdef USE_IMGUI
+#ifdef USBHOST_USE_IMGUI
 #include "imgui.h"
 #include "imgui_sw.h"
-#include "usb_keys.h"
 #endif
+#include "usb_keys.h"
 
 #define LED_BUILTIN 0
 #define PROFILE_NAME "LiteX"
@@ -71,7 +71,7 @@ usb_pins_config_t USB_Pins_Config =
 extern "C" void loop();
 extern "C" void setup();
 bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel);
-bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed);
+bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed, char inputchar);
 void ui_init();
 void do_ui();
 
@@ -125,7 +125,7 @@ void loop()
     while( hal_queue_receive(usb_msg_queue, &msg) ) {
       int usbNum = msg.src/NUM_USB;
       if( printDataCB ) {
-#if 1//ndef USE_IMGUI      
+#if 1//ndef USBHOST_USE_IMGUI      
         printDataCB(usbNum, 32, msg.data, msg.len );
 #endif
       }
@@ -180,12 +180,28 @@ void loop()
               key = prev.scancode[i];
 
           if(pressed || released)
-             updateui = do_keybui_update(k.modifier, key, pressed) || updateui;
+          {
+		    char inputchar = '\0';
+			switch(k.modifier)
+			{
+			  case 0: //add plain character only if no modifiers are set
+				if(key < sizeof(usb_key_codesPLAIN))
+				  inputchar = usb_key_codesPLAIN[key];
+				break;
+			  case HID_LSHIFT_MASK: //add shifted character only if no other modifiers are present
+			  case HID_RSHIFT_MASK:
+			  case HID_LSHIFT_MASK | HID_RSHIFT_MASK:
+				if(key < sizeof(usb_key_codesSHIFT))
+				  inputchar = usb_key_codesSHIFT[key];
+				break;
+			}
+            updateui = do_keybui_update(k.modifier, key, pressed, inputchar) || updateui;
+          }
         }
-        if(key == HID_KEY_NOKEY)
-          updateui = do_keybui_update(k.modifier, HID_KEY_NOKEY, false) || updateui;
         if(key != HID_KEY_ERROR)
           prev = k;
+        if(key == HID_KEY_NOKEY)
+          updateui = do_keybui_update(k.modifier, HID_KEY_NOKEY, false, '\0') || updateui;
         if(updateui)
           break;
       }
@@ -218,26 +234,22 @@ void loop()
         if(y < 0) y = 0;
         if(y >= FB_HEIGHT) y = FB_HEIGHT-1;
         if(do_mouseui_update(x, y, buttons, mousewheel))
-        {
-#if 1//ndef USE_IMGUI         
-          printf("x %d (%+d), y %d (%+d), buttons 0x%02X wheel %d (%+d)\n", x, dx, y, dy, buttons, mousewheel, wheel);
-#endif
           break;
-        }
       }
     }
 
+    mousewheel = 0; 
     if(!had_mousepacket)
       mouseaccel = 0;
 
 
+#if 1//def USBHOST_USE_IMGUI
     static int frame = 0;
     if(!(++frame % 60))
       printf("FPS %.1f\n", 1./dt);
-
+#endif
 
     do_ui();
-    mousewheel = 0; 
 }
 
 
@@ -254,27 +266,13 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 #endif
 
 
-#ifdef USE_IMGUI
-bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed)
+#ifdef USBHOST_USE_IMGUI
+bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed, char inputchar)
 {
   ImGuiIO& io = ImGui::GetIO();
 
-  char inputchar = '\0';
   if(key != HID_KEY_NOKEY)
   {
-    switch(modifiers)
-    {
-      case 0: //add plain character only if no modifiers are set
-        if(key < sizeof(usb_key_codesPLAIN))
-          inputchar = usb_key_codesPLAIN[key];
-        break;
-      case HID_LSHIFT_MASK: //add shifted character only if no other modifiers are present
-      case HID_RSHIFT_MASK:
-      case HID_LSHIFT_MASK | HID_RSHIFT_MASK:
-        if(key < sizeof(usb_key_codesSHIFT))
-          inputchar = usb_key_codesSHIFT[key];
-        break;
-    }
     if(inputchar && pressed)
       io.AddInputCharacter(inputchar);
     io.KeysDown[key] = pressed;
@@ -285,7 +283,7 @@ bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed)
   io.KeyAlt   = 0 != (modifiers & (HID_LALT_MASK | HID_RALT_MASK));
   io.KeySuper = 0 != (modifiers & (HID_LSUPER_MASK | HID_RSUPER_MASK));
 
-  printf("KEY %s event, key 0x%02x, char '%c', modifiers 0x%02x\n", pressed ? "PRESSED":"RELEASED", key, inputchar, modifiers);
+  printf("[UI] KEY %s event, key 0x%02x, char '%c', modifiers 0x%02x\n", pressed ? "PRESSED":"RELEASED", key, inputchar, modifiers);
   return true;
 }
 
@@ -300,6 +298,7 @@ bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel)
     mousebuttons = buttons;
     return true; //notify on change
   }
+  printf("x %d, y %d, buttons 0x%02X wheel %d\n", mousex, mousey, buttons, wheel);
   return false;
 }
 
@@ -411,20 +410,28 @@ bool do_mouseui_update(int mousex, int mousey, int buttons, int wheel)
     lastx < mousex ? mousex : lastx, lasty < mousey ? mousey : lasty,
     color);
 
+  printf("x %d (%+d), y %d (%+d), buttons 0x%02X wheel %d\n", mousex, mousex-lastx, mousey, mousey-lasty, buttons, wheel);
   lastx = mousex; lasty = mousey;
+  
   return true; //process all mouse events
+}
+
+bool do_keybui_update(uint8_t modifiers, uint8_t key, bool pressed, char inputchar)
+{
+  printf("[NO UI] KEY %s event, key 0x%02x, char '%c', modifiers 0x%02x\n", pressed ? "PRESSED":"RELEASED", key, inputchar, modifiers);
+  return true;
 }
 
 void do_ui()
 {
-  //delay(500);
+  delay(1000/60); //FIXME: delay required to avoid mouse acelleration algorithm issues
 }
 
 void ui_init()
 {
   fb_init();
   printf("Dummy UI init...\n");
-  delay(1000);
+  delay(100);
   printf("Dummy UI done\n");
 }
 
