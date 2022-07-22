@@ -7,11 +7,6 @@
 //for DVI 800x600@50Hz: 
 //$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
 
-//GPIO pins for USB
-#define DM_P0  12 //D-
-#define DP_P0  13 //D+
-#define DP_P1  14 //D+
-#define DM_P1  15 //D-
 
 //#define DEBUG_ALL
 #define USBHOST_USE_IMGUI
@@ -58,15 +53,19 @@ void my_LedBlinkCB(int on_off)
   }
 #endif
 }
-
-usb_pins_config_t USB_Pins_Config =
+#define USBH_QUEUE_SIZE 100
+void usbh_pins_init(int DP_P0, int DM_P0, int DP_P1, int DM_P1, int queue_size)
 {
-  DP_P0, DM_P0,
-  DP_P1, DM_P1,
-  -1, -1,
-  -1, -1
-};
 
+  usb_pins_config_t USB_Pins_Config = { DP_P0, DM_P0, DP_P1, DM_P1, -1, -1, -1, -1 };
+  static USBMessage FAST_DATA usb_msg_queue_buffer[USBH_QUEUE_SIZE]; //NOTE: too much data makes things slower
+
+  //FIXME: call C functions
+  printf("USB init...\n");
+  USH.init( USB_Pins_Config, usb_msg_queue_buffer, sizeof(usb_msg_queue_buffer)/sizeof(usb_msg_queue_buffer[0]), my_USB_DetectCB, my_USB_PrintCB );
+  USH.setActivityBlinker(my_LedBlinkCB);
+  printf("USB init done\n");
+}
 
 extern "C" void loop();
 extern "C" void setup();
@@ -81,9 +80,6 @@ void delay(int ms)
  while(int(micros() - t1) < 0);
 }
 
-extern "C" USBMessage usb_msg_queue_buffer[];
-USBMessage FAST_DATA usb_msg_queue_buffer[100]; //NOTE: too much data makes things slowers!
-
 void setup()
 {
   ui_init();
@@ -97,10 +93,12 @@ void setup()
     fb_swap_buffers();
   }
  */ 
-  printf("USB init...\n");
-  USH.init( USB_Pins_Config, usb_msg_queue_buffer, sizeof(usb_msg_queue_buffer)/sizeof(usb_msg_queue_buffer[0]), my_USB_DetectCB, my_USB_PrintCB );
-  USH.setActivityBlinker(my_LedBlinkCB);
-  printf("USB init done\n");
+  static const int DM_P0 = 12; //D-
+  static const int DP_P0 = 13; //D+
+  static const int DP_P1 = 14; //D+
+  static const int DM_P1 = 15; //D-
+  usbh_pins_init(DP_P0, DM_P0, DP_P1, DP_P1, USBH_QUEUE_SIZE);
+
   //printf("setup done\n");
 }
 
@@ -125,11 +123,11 @@ typedef union hid_event
   hid_event_mouse m;
 };
 
-hid_protocol_t usbh_hid_process(hid_event *evt, bool prev_accepted, float dt)
+hid_protocol_t usbh_hid_process(hid_event *evt, bool prevupdated, float dt)
 {
     hid_protocol_t proto = USB_HID_PROTO_NONE;
     
-    if(prev_accepted)
+    if(prevupdated)
     {
       mousewheel = 0; 
     }
@@ -140,7 +138,7 @@ hid_protocol_t usbh_hid_process(hid_event *evt, bool prev_accepted, float dt)
       printf("Elements in FIFO: %d\n", msgcount);*/
 
     bool had_mousepacket = false;
-    static float mouseaccel = 0; //FIXME: move statics to event
+    static float mouseacell = 0; //FIXME: move statics to event
 
     struct USBMessage msg;
     if( hal_queue_receive(usb_msg_queue, &msg) ) //FIXME: move logic
@@ -256,10 +254,10 @@ hid_protocol_t usbh_hid_process(hid_event *evt, bool prev_accepted, float dt)
 #ifdef MOUSE_ACCEL_FACTOR
         //cuadratic acceleration
         float mspeed = sqrt(dx*dx+dy*dy)*MOUSE_ACCEL_FACTOR/dt;
-        float acc = (1.-MOUSE_ACCEL_SMOOTH)*mouseaccel + MOUSE_ACCEL_SMOOTH*mspeed;
-        if(acc > mouseaccel) mouseaccel = acc; //deceleration has priority
-        x += dx + dx*mouseaccel;
-        y += dy + dy*mouseaccel;
+        float acc = (1.-MOUSE_ACCEL_SMOOTH)*mouseacell + MOUSE_ACCEL_SMOOTH*mspeed;
+        if(acc > mouseacell) mouseacell = acc; //deceleration has priority
+        x += dx + dx*mouseacell;
+        y += dy + dy*mouseacell;
 #else
         x += dx;
         y += dy;
@@ -280,12 +278,17 @@ hid_protocol_t usbh_hid_process(hid_event *evt, bool prev_accepted, float dt)
     }
   }
   else
-     mouseaccel = 0; //FIXME: check inactivity time
-
+  {
+     if(mouseacell != 0)
+     {
+       printf("max mouse acell %f\n", mouseacell);
+       mouseacell = 0; //FIXME: check inactivity time
+     }
+  }
   return proto;
 }
 
-void loop()
+void hid_poll()
 {
   bool updateui = true;
   for(;;)
@@ -315,6 +318,12 @@ void loop()
     break;
   }
 
+}
+
+
+void loop()
+{
+  hid_poll();
   do_ui();
 }
 
