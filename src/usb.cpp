@@ -30,8 +30,7 @@ extern "C" {
 #define LED_BUILTIN 0
 #define PROFILE_NAME "LiteX"
 
-//#include "usb_host.h"
-#include "USBHost.hpp"
+#include "usb_host.h"
 
 
 #ifdef DEBUG_ALL
@@ -42,7 +41,10 @@ extern uint16_t received_NRZI_buffer[];
 unsigned activity_count = 0;
 void my_LedBlinkCB(int on_off)
 {
+#ifdef BLINK_GPIO
   hal_gpio_set_level(BLINK_GPIO, on_off);
+#endif
+
 #ifdef DEBUG_ALL
   if(on_off)
   {

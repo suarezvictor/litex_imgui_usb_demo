@@ -1,6 +1,10 @@
 #ifndef USB_HOST_H
 #define USB_HOST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define USB_HID_INTF_CLASS		0x03
 
 typedef enum
@@ -362,5 +366,8 @@ void usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data);
 void Default_USB_DetectCB( uint8_t usbNum, void * dev );
 void Default_USB_DataCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
 
+#ifdef __cplusplus
+} //extern "C"
+#endif
 
 #endif
