@@ -330,4 +330,37 @@ static void IRAM_ATTR usbhost_timer_cb(void *para)
 #endif
 
 
+extern hal_queue_handle_t usb_msg_queue;
+
+typedef struct
+{
+  uint8_t src;
+  uint8_t len;
+  uint8_t data[0x8];
+} USBMessage;
+
+// pins configuration
+typedef struct
+{
+  int dp0, dm0;
+  int dp1, dm1;
+  int dp2, dm2;
+  int dp3, dm3;
+} usb_pins_config_t;
+
+// task ticker
+typedef void (*ontick_t)();
+
+
+///////////////////////////////
+//USB Host C API
+extern hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
+extern void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
+void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size);
+void usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data);
+
+void Default_USB_DetectCB( uint8_t usbNum, void * dev );
+void Default_USB_DataCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
+
+
 #endif

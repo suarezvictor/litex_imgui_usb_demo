@@ -60,10 +60,8 @@ void usbh_pins_init(int DP_P0, int DM_P0, int DP_P1, int DM_P1, int queue_size)
   usb_pins_config_t USB_Pins_Config = { DP_P0, DM_P0, DP_P1, DM_P1, -1, -1, -1, -1 };
   static USBMessage FAST_DATA usb_msg_queue_buffer[USBH_QUEUE_SIZE]; //NOTE: too much data makes things slower
 
-  //FIXME: call C functions
   printf("USB init...\n");
-  USH.init( USB_Pins_Config, usb_msg_queue_buffer, sizeof(usb_msg_queue_buffer)/sizeof(usb_msg_queue_buffer[0]), my_USB_DetectCB, my_USB_PrintCB );
-  USH.setActivityBlinker(my_LedBlinkCB);
+  usbh_init(&USB_Pins_Config, usb_msg_queue_buffer, sizeof(usb_msg_queue_buffer)/sizeof(usb_msg_queue_buffer[0]));
   printf("USB init done\n");
 }
 
@@ -140,7 +138,7 @@ hid_protocol_t usbh_hid_process(hid_event *evt, bool prevupdated, float dt)
     bool had_mousepacket = false;
     static float mouseacell = 0; //FIXME: move statics to event
 
-    struct USBMessage msg;
+    USBMessage msg;
     if( hal_queue_receive(usb_msg_queue, &msg) ) //FIXME: move logic
     { 
       int usbNum = msg.src/NUM_USB;
@@ -281,7 +279,7 @@ hid_protocol_t usbh_hid_process(hid_event *evt, bool prevupdated, float dt)
   {
      if(mouseacell != 0)
      {
-       printf("max mouse acell %f\n", mouseacell);
+       //printf("max mouse acell %f\n", mouseacell);
        mouseacell = 0; //FIXME: check inactivity time
      }
   }

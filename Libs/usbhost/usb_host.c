@@ -1850,6 +1850,98 @@ void FAST_CODE printState(void)
   }
 }
 
+///////////////////////////////
+//USB Host C API
+
+void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len) = NULL /*Default_USB_DataCB*/;
+hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
+
+/*
+void Default_USB_DataCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
+{
+  // if( myListenUSBPort != usbNum ) return;
+  printf("USB %d in (HID type %d): ", usbNum, hid_types[usbNum]);
+  for(int k=0;k<data_len;k++) {
+    printf("0x%02x ", data[k] );
+  }
+  printf("\n");
+}
+*/
+
+void Default_USB_DetectCB( uint8_t usbNum, void * dev )
+{
+  sDevDesc *device = (sDevDesc*)dev;
+  printf("New device detected on USB#%d\n", usbNum);
+  printf("desc.bcdUSB             = 0x%04x\n", device->bcdUSB);
+  printf("desc.bDeviceClass       = 0x%02x\n", device->bDeviceClass);
+  printf("desc.bDeviceSubClass    = 0x%02x\n", device->bDeviceSubClass);
+  printf("desc.bDeviceProtocol    = 0x%02x\n", device->bDeviceProtocol);
+  printf("desc.bMaxPacketSize0    = 0x%02x\n", device->bMaxPacketSize0);
+  printf("desc.idVendor           = 0x%04x\n", device->idVendor);
+  printf("desc.idProduct          = 0x%04x\n", device->idProduct);
+  printf("desc.bcdDevice          = 0x%04x\n", device->bcdDevice);
+  printf("desc.iManufacturer      = 0x%02x\n", device->iManufacturer);
+  printf("desc.iProduct           = 0x%02x\n", device->iProduct);
+  printf("desc.iSerialNumber      = 0x%02x\n", device->iSerialNumber);
+  printf("desc.bNumConfigurations = 0x%02x\n", device->bNumConfigurations);
+  // if( device->iProduct == mySupportedIdProduct && device->iManufacturer == mySupportedManufacturer ) {
+  //   myListenUSBPort = usbNum;
+  // }
+  
+  if(usbNum <= NUM_USB)
+  {
+    hid_protocol_t hid_protocol = usb_get_hid_proto(usbNum);
+    hid_types[usbNum] = hid_protocol;
+    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
+      printf("HID KEYBOARD DETECTED\n");
+    if(hid_protocol == USB_HID_PROTO_MOUSE)
+      printf("HID MOUSE DETECTED\n");
+  }
+}
+
+void usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data)
+{
+  USBMessage msg;
+  msg.src = src;
+  msg.len = len<0x8?len:0x8;
+  for(int k=0;k<msg.len;k++) {
+    msg.data[k] = data[k];
+  }
+  hal_queue_send( usb_msg_queue, &msg);
+}
+
+
+void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size)
+{
+
+
+  setDelay(4);
+  
+  usb_msg_queue = hal_queue_create(qb_size, sizeof(USBMessage), qb);
+
+  initStates(
+    (hal_gpio_num_t)pconf->dp0, (hal_gpio_num_t)pconf->dm0,
+    (hal_gpio_num_t)pconf->dp1, (hal_gpio_num_t)pconf->dm1,
+    (hal_gpio_num_t)pconf->dp2, (hal_gpio_num_t)pconf->dm2,
+    (hal_gpio_num_t)pconf->dp3, (hal_gpio_num_t)pconf->dm3
+  );
+#ifdef BLINK_GPIO
+  hal_gpio_pad_select_gpio((hal_gpio_num_t)BLINK_GPIO);
+  hal_gpio_set_direction((hal_gpio_num_t)BLINK_GPIO, GPIO_MODE_OUTPUT);
+#endif
+#ifdef TIMER_INTERVAL0_SEC
+  #if !defined USE_NATIVE_GROUP_TIMERS && defined(ESP32)
+  timer_queue = xQueueCreate( 10, sizeof(timer_event_t) );
+  #endif
+  hal_timer_setup(TIMER_0, (uint64_t) ((double)TIMER_INTERVAL0_SEC * TIMER_SCALE), usbhost_timer_cb);
+#endif
+
+  set_ondetect_cb(Default_USB_DetectCB);
+  set_usb_mess_cb( usbh_on_message_decode );
+}
+
+void set_print_cb( printcb_t cb ) { printDataCB = cb; }
+hal_queue_handle_t usb_msg_queue;
 
 #pragma GCC diagnostic pop
 
