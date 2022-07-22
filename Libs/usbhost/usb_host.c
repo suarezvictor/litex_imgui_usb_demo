@@ -1763,14 +1763,8 @@ void FAST_CODE printState(void)
     pcurrent->ufPrintDesc &= ~(uint32_t)1;
 
   //TODO: move this logic to where the device is actually detected  
-  {
-    hid_protocol_t hid_protocol = usb_get_hid_proto(ref);
-    hid_types[ref] = hid_protocol;
-    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
-      printf("HID KEYBOARD DETECTED\n");
-    if(hid_protocol == USB_HID_PROTO_MOUSE)
-      printf("HID MOUSE DETECTED\n");
-  }
+  hid_protocol_t hid_protocol = usb_get_hid_proto(ref);
+  hid_types[ref] = hid_protocol;
 
     if( onDetectCB ) {
       onDetectCB( ref, (void*)&pcurrent->desc );
@@ -1868,27 +1862,6 @@ void FAST_CODE printState(void)
 void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len) = usbh_on_hiddata_log;
 hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
 
-
-void usbh_on_detect( uint8_t usbNum, void * dev )
-{
-  sDevDesc *device = (sDevDesc*)dev;
-  printf("New device detected on USB#%d\n", usbNum);
-  printf("desc.bcdUSB             = 0x%04x\n", device->bcdUSB);
-  printf("desc.bDeviceClass       = 0x%02x\n", device->bDeviceClass);
-  printf("desc.bDeviceSubClass    = 0x%02x\n", device->bDeviceSubClass);
-  printf("desc.bDeviceProtocol    = 0x%02x\n", device->bDeviceProtocol);
-  printf("desc.bMaxPacketSize0    = 0x%02x\n", device->bMaxPacketSize0);
-  printf("desc.idVendor           = 0x%04x\n", device->idVendor);
-  printf("desc.idProduct          = 0x%04x\n", device->idProduct);
-  printf("desc.bcdDevice          = 0x%04x\n", device->bcdDevice);
-  printf("desc.iManufacturer      = 0x%02x\n", device->iManufacturer);
-  printf("desc.iProduct           = 0x%02x\n", device->iProduct);
-  printf("desc.iSerialNumber      = 0x%02x\n", device->iSerialNumber);
-  printf("desc.bNumConfigurations = 0x%02x\n", device->bNumConfigurations);
-  // if( device->iProduct == mySupportedIdProduct && device->iManufacturer == mySupportedManufacturer ) {
-  //   myListenUSBPort = usbNum;
-  // }
-}
 
 void usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data)
 {
@@ -2005,7 +1978,7 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
       mousewheel = 0; 
     }
 
-    printState();
+    printState(); //FIXME: required to detect HID events
     /*int msgcount = tu_fifo_count(&usb_msg_queue);
     if(msgcount)
       printf("Elements in FIFO: %d\n", msgcount);*/

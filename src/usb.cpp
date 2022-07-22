@@ -64,6 +64,36 @@ void usbh_on_hiddata_log(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint
 }
 
 
+void usbh_on_detect( uint8_t usbNum, void * dev )
+{
+  sDevDesc *device = (sDevDesc*)dev;
+  printf("New device detected on USB#%d\n", usbNum);
+  printf("desc.bcdUSB             = 0x%04x\n", device->bcdUSB);
+  printf("desc.bDeviceClass       = 0x%02x\n", device->bDeviceClass);
+  printf("desc.bDeviceSubClass    = 0x%02x\n", device->bDeviceSubClass);
+  printf("desc.bDeviceProtocol    = 0x%02x\n", device->bDeviceProtocol);
+  printf("desc.bMaxPacketSize0    = 0x%02x\n", device->bMaxPacketSize0);
+  printf("desc.idVendor           = 0x%04x\n", device->idVendor);
+  printf("desc.idProduct          = 0x%04x\n", device->idProduct);
+  printf("desc.bcdDevice          = 0x%04x\n", device->bcdDevice);
+  printf("desc.iManufacturer      = 0x%02x\n", device->iManufacturer);
+  printf("desc.iProduct           = 0x%02x\n", device->iProduct);
+  printf("desc.iSerialNumber      = 0x%02x\n", device->iSerialNumber);
+  printf("desc.bNumConfigurations = 0x%02x\n", device->bNumConfigurations);
+  // if( device->iProduct == mySupportedIdProduct && device->iManufacturer == mySupportedManufacturer ) {
+  //   myListenUSBPort = usbNum;
+  // }
+  
+  if(usbNum < NUM_USB)
+  {
+    hid_protocol_t hid_protocol = hid_types[usbNum];
+    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
+      printf("HID KEYBOARD DETECTED\n");
+    if(hid_protocol == USB_HID_PROTO_MOUSE)
+      printf("HID MOUSE DETECTED\n");
+  }
+}
+
 
 extern "C" void loop();
 extern "C" void setup();
@@ -142,6 +172,8 @@ int usbh_on_hidevent_keyboard(uint8_t modifiers, uint8_t key, int pressed, char 
 uint8_t mousebuttons = 0;
 int usbh_on_hidevent_mouse(int mousex, int mousey, int buttons, int wheel)
 {
+  printf("x %d, y %d, buttons 0x%02X wheel %d\n", mousex, mousey, buttons, wheel);
+
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2((float)mousex, (float)mousey); //TODO: AddMousePosEvent in ImGui v1.88
   //mousebuttons |= buttons; //this is for auto release
@@ -150,7 +182,6 @@ int usbh_on_hidevent_mouse(int mousex, int mousey, int buttons, int wheel)
     mousebuttons = buttons;
     return true; //notify on change
   }
-  printf("x %d, y %d, buttons 0x%02X wheel %d\n", mousex, mousey, buttons, wheel);
   return false;
 }
 
