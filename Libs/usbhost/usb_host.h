@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define USBHOST_WEAK __attribute__((weak))
+
 #define USB_HID_INTF_CLASS		0x03
 
 typedef enum
@@ -358,13 +360,44 @@ typedef void (*ontick_t)();
 
 ///////////////////////////////
 //USB Host C API
+#define USBH_QUEUE_SIZE 100
+
 extern hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
 extern void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
-void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size);
-void usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data);
+void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size); //internal function, called by usbh_pins_init
+void usbh_pins_init(int DP_P0, int DM_P0, int DP_P1, int DM_P1, int queue_size);
+void usbh_hid_poll(void);
 
-void Default_USB_DetectCB( uint8_t usbNum, void * dev );
-void Default_USB_DataCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
+//general USB events
+void USBHOST_WEAK usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data);
+void USBHOST_WEAK usbh_on_detect( uint8_t usbNum, void * dev );
+void USBHOST_WEAK usbh_on_data(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
+
+//HID functions
+extern int mousewheel;
+typedef struct
+{
+  int modifier, key;
+  char inputchar;
+  bool pressed;
+} hid_event_keyboard;
+
+typedef struct
+{
+  int16_t x, y, wheel;
+  uint8_t buttons;
+} hid_event_mouse;
+
+typedef union
+{
+  hid_event_keyboard k;
+  hid_event_mouse m;
+} hid_event;
+
+void usbh_hid_setmouse_rect(int w, int h);
+hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt);
+int USBHOST_WEAK usbh_on_hidevent_keyboard(uint8_t modifiers, uint8_t key, int pressed, char inputchar);
+int USBHOST_WEAK usbh_on_hidevent_mouse(int mousex, int mousey, int buttons, int wheel);
 
 #ifdef __cplusplus
 } //extern "C"

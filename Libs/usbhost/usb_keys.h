@@ -119,7 +119,7 @@ https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2 (Public Doma
 static const char usb_key_codesPLAIN[]= { "\0\0\0\0abcdefghijklmnopqrstuvwxyz1234567890\n\e\b\t _\0[]\\\0;'`,./" };
 static const char usb_key_codesSHIFT[]= { "\0\0\0\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()\n\e\b\t _\0{}|\0:\"~<>?" };
 
-struct keyreport {
+typedef struct {
   union {
     struct { //USB format matches ImGuiModFlags_Ctrl, etc
        uint8_t lctrl :1; 
@@ -135,7 +135,7 @@ struct keyreport {
   };
   uint8_t :8; //reserved
   uint8_t scancode[6];
-};
+} keyreport;
 
 #ifdef USBHOST_USE_IMGUI
 #define IMGUIKEY_NONE ImGuiKey_COUNT //TODO: fix for v.188
