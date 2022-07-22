@@ -1761,6 +1761,17 @@ void FAST_CODE printState(void)
 
   if(pcurrent->ufPrintDesc&1) {
     pcurrent->ufPrintDesc &= ~(uint32_t)1;
+
+  //TODO: move this logic to where the device is actually detected  
+  {
+    hid_protocol_t hid_protocol = usb_get_hid_proto(ref);
+    hid_types[ref] = hid_protocol;
+    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
+      printf("HID KEYBOARD DETECTED\n");
+    if(hid_protocol == USB_HID_PROTO_MOUSE)
+      printf("HID MOUSE DETECTED\n");
+  }
+
     if( onDetectCB ) {
       onDetectCB( ref, (void*)&pcurrent->desc );
     } else {
@@ -1854,20 +1865,9 @@ void FAST_CODE printState(void)
 //USB Host C API
 #include <usb_keys.h>
 
-void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len) = NULL /*Default_USB_DataCB*/;
+void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len) = usbh_on_hiddata_log;
 hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
 
-/*
-void Default_USB_DataCB(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
-{
-  // if( myListenUSBPort != usbNum ) return;
-  printf("USB %d in (HID type %d): ", usbNum, hid_types[usbNum]);
-  for(int k=0;k<data_len;k++) {
-    printf("0x%02x ", data[k] );
-  }
-  printf("\n");
-}
-*/
 
 void usbh_on_detect( uint8_t usbNum, void * dev )
 {
@@ -1888,16 +1888,6 @@ void usbh_on_detect( uint8_t usbNum, void * dev )
   // if( device->iProduct == mySupportedIdProduct && device->iManufacturer == mySupportedManufacturer ) {
   //   myListenUSBPort = usbNum;
   // }
-  
-  if(usbNum <= NUM_USB)
-  {
-    hid_protocol_t hid_protocol = usb_get_hid_proto(usbNum);
-    hid_types[usbNum] = hid_protocol;
-    if(hid_protocol == USB_HID_PROTO_KEYBOARD)
-      printf("HID KEYBOARD DETECTED\n");
-    if(hid_protocol == USB_HID_PROTO_MOUSE)
-      printf("HID MOUSE DETECTED\n");
-  }
 }
 
 void usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data)
@@ -2027,10 +2017,10 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
     if( hal_queue_receive(usb_msg_queue, &msg) ) //FIXME: move logic
     { 
       int usbNum = msg.src/NUM_USB;
-      if( printDataCB )
+      if( usbh_on_hiddata_log )
       {
 #if 1//ndef USBHOST_USE_IMGUI      
-        printDataCB(usbNum, 32, msg.data, msg.len );
+        usbh_on_hiddata_log(usbNum, 32, msg.data, msg.len );
 #endif
       }
 

@@ -53,6 +53,18 @@ void my_LedBlinkCB(int on_off)
 #endif
 }
 
+void usbh_on_hiddata_log(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len)
+{
+  // if( myListenUSBPort != usbNum ) return;
+  printf("USB %d in (HID type %d): ", usbNum, hid_types[usbNum]);
+  for(int k=0;k<data_len;k++) {
+    printf("0x%02x ", data[k] );
+  }
+  printf("\n");
+}
+
+
+
 extern "C" void loop();
 extern "C" void setup();
 void ui_init();

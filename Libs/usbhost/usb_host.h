@@ -398,6 +398,7 @@ void usbh_hid_setmouse_rect(int w, int h);
 hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt);
 int USBHOST_WEAK usbh_on_hidevent_keyboard(uint8_t modifiers, uint8_t key, int pressed, char inputchar);
 int USBHOST_WEAK usbh_on_hidevent_mouse(int mousex, int mousey, int buttons, int wheel);
+void USBHOST_WEAK usbh_on_hiddata_log(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
 
 #ifdef __cplusplus
 } //extern "C"
