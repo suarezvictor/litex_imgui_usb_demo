@@ -36,7 +36,7 @@ extern uint16_t received_NRZI_buffer[];
 #endif
 
 unsigned activity_count = 0;
-void my_LedBlinkCB(int on_off)
+void usbh_on_activitystatus(int on_off)
 {
 #ifdef BLINK_GPIO
   hal_gpio_set_level(BLINK_GPIO, on_off);

@@ -675,7 +675,7 @@ uint16_t debug_buff[0x100];
 #endif
 
 
-void FAST_DATA (*onLedBlinkCB)(int on_off) = NULL;
+void FAST_DATA (*onLedBlinkCB)(int on_off) = usbh_on_activitystatus;
 #define NOTIFY() if(onLedBlinkCB) onLedBlinkCB(1)
 
 
