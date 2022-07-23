@@ -24,6 +24,8 @@ void usbh_hid_poll(float dt)
         updateui = usbh_on_hidevent_mouse(evt.m.x, evt.m.y, evt.m.buttons, evt.m.wheel);
         if(!updateui) continue;
         break;
+      case USB_HID_PROTO_NONE:
+        break;
     }
     break;
   }
@@ -44,7 +46,6 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
     if(msgcount)
       printf("Elements in FIFO: %d\n", msgcount);*/
 
-    bool had_mousepacket = false;
     static float mouseacell = 0; //FIXME: move statics to event
 
     USBMessage msg;
@@ -85,7 +86,6 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
     {
       keyreport *k = (keyreport*) msg.data;
       static keyreport prev; //should be zero initialized by C runtime
-      bool updateui = false;
       uint8_t key = HID_KEY_NOKEY;
       for (uint8_t i = 0; i < sizeof(k->scancode); ++i)
       {
@@ -145,7 +145,6 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
     }
     else if(ismousepacket)
     {
-        had_mousepacket = true;
         //packet decoding in 12-bit values (some mouses reports 8 bit values)
         //see https://forum.pjrc.com/threads/45740-USB-Host-Mouse-Driver
         uint8_t buttons = msg.data[0];

@@ -354,9 +354,6 @@ typedef struct
   int dp3, dm3;
 } usb_pins_config_t;
 
-// task ticker
-typedef void (*ontick_t)();
-
 
 ///////////////////////////////
 //USB Host C API
