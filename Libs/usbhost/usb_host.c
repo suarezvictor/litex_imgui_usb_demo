@@ -1927,7 +1927,7 @@ void usbh_hid_poll(void)
   bool updateui = true;
   for(;;)
   {
-  uint64_t t0;
+  static uint64_t t0;
   static int first_pass = true;
   if(first_pass)
   {
@@ -1960,13 +1960,6 @@ void usbh_hid_poll(void)
     break;
   }
 
-}
-
-int mousex_max=640, mousey_max=480;
-void usbh_hid_setmouse_rect(int w, int h)
-{
-  mousex_max=w;
-  mousey_max=h;
 }
 
 hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
@@ -2085,7 +2078,6 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
     else if(ismousepacket)
     {
         had_mousepacket = true;
-        static int x = 320, y = 240;
         //packet decoding in 12-bit values (some mouses reports 8 bit values)
         //see https://forum.pjrc.com/threads/45740-USB-Host-Mouse-Driver
         uint8_t buttons = msg.data[0];
@@ -2103,17 +2095,11 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
         dx += dx*mouseacell;
         dy += dy*mouseacell;
 #endif
-        x += dx;
-        y += dy;
         mousewheel += wheel;
-        if(x < 0) x = 0;
-        if(x >= mousex_max) x = mousex_max-1; 
-        if(y < 0) y = 0;
-        if(y >= mousey_max) y = mousey_max-1;
         //if(usbh_on_hidevent_mouse(x, y, buttons, mousewheel))
         //  break;
-        evt->m.x = x;
-        evt->m.y = y;
+        evt->m.x = dx;
+        evt->m.y = dy;
         evt->m.buttons = buttons;
         evt->m.wheel = mousewheel;
         proto = USB_HID_PROTO_MOUSE;

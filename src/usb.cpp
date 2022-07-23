@@ -124,14 +124,13 @@ void setup()
   static const int DP_P1 = 14; //D+
   static const int DM_P1 = 15; //D-
   usbh_pins_init(DP_P0, DM_P0, DP_P1, DP_P1, USBH_QUEUE_SIZE);
-  usbh_hid_setmouse_rect(FB_WIDTH, FB_HEIGHT);
   //printf("setup done\n");
 }
 
 
 void loop()
 {
-  usbh_hid_poll();
+  usbh_hid_poll(); //may call events
   do_ui();
 }
 
@@ -169,19 +168,33 @@ int usbh_on_hidevent_keyboard(uint8_t modifiers, uint8_t key, int pressed, char 
   return true;
 }
 
-uint8_t mousebuttons = 0;
-int usbh_on_hidevent_mouse(int mousex, int mousey, int buttons, int wheel)
+int usbh_on_hidevent_mouse(int dx, int dy, int buttons, int wheel)
 {
-  printf("x %d, y %d, buttons 0x%02X wheel %d\n", mousex, mousey, buttons, wheel);
 
   ImGuiIO& io = ImGui::GetIO();
-  io.MousePos = ImVec2((float)mousex, (float)mousey); //TODO: AddMousePosEvent in ImGui v1.88
-  //mousebuttons |= buttons; //this is for auto release
-  if(mousebuttons != buttons)
+
+  //TODO: AddMousePosEvent in ImGui v1.88
+  io.MousePos.x += dx;
+  if(io.MousePos.x < 0) io.MousePos.x = 0;
+  if(io.MousePos.x > FB_WIDTH-1) io.MousePos.x = FB_WIDTH-1;
+  io.MousePos.y += dy;
+  if(io.MousePos.y < 0) io.MousePos.y = 0;
+  if(io.MousePos.y > FB_WIDTH-1) io.MousePos.y = FB_HEIGHT-1;
+
+  io.MouseWheel = wheel; //wheel delta
+  for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++)
+    io.MouseDown[i] = (buttons >> i) & 1;
+
+  printf("x %f (%+d), y %f (%+d), buttons 0x%02X wheel %d\n", io.MousePos.x, dx, io.MousePos.y, dy, buttons, wheel);
+  static uint8_t mousebuttons = 0;
+  if(mousebuttons != buttons || wheel != 0)
   {
     mousebuttons = buttons;
-    return true; //notify on change
+    return true;
   }
+  //this makes the hid process to continue gathering any pending mouse packets when the event is just movements
+  //so the UI is not updated after all packet movements are processed
+  //A more responsive UI may want to process all individual movements
   return false;
 }
 
@@ -190,12 +203,10 @@ void do_ui()
 {
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES);
+    
+    //TODO: move button & wheel logic
     ImVec2 p = io.MousePos;
     int mousex = int(p.x), mousey = int(p.y);
-    for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++)
-        io.MouseDown[i] = (mousebuttons >> i) & 1;
-    io.MouseWheel = mousewheel;
-    mousewheel = 0;
 
     static int n = 0;
     static uint64_t t0 = micros();
