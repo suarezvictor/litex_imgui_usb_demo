@@ -98,14 +98,10 @@ void usbh_on_detect( uint8_t usbNum, void * dev )
 extern "C" void loop();
 extern "C" void setup();
 void ui_init();
-void do_ui();
+void do_ui(float dt);
 
-void delay(int ms)
-{
- int t1 = micros() + ms*1000;
- while(int(micros() - t1) < 0);
-}
 
+uint64_t t0;
 void setup()
 {
   ui_init();
@@ -123,15 +119,25 @@ void setup()
   static const int DP_P0 = 13; //D+
   static const int DP_P1 = 14; //D+
   static const int DM_P1 = 15; //D-
-  usbh_pins_init(DP_P0, DM_P0, DP_P1, DP_P1, USBH_QUEUE_SIZE);
+  usbh_pins_init(DP_P0, DM_P0, DP_P1, DM_P1, USBH_QUEUE_SIZE);
   //printf("setup done\n");
+  
+  t0 = micros();
 }
 
 
 void loop()
 {
-  usbh_hid_poll(); //may call events
-  do_ui();
+  uint64_t t1 = micros();
+  float dt = int64_t(t1-t0)*1.e-6;
+  t0 = t1;
+
+  usbh_hid_poll(dt); //may call events
+  do_ui(dt);
+
+  static int frame = 0;
+  if(!(++frame % 60))
+    printf("FPS %.1f\n", 1./dt);
 }
 
 #if !defined(TIMER_INTERVAL0_SEC)
@@ -142,7 +148,7 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 {
   printf("in hal_timer_setup at 0x%p\n", hal_timer_setup);
   litex_timer_setup(alarm_value, timer_isr);
-  //delay(50); //DEBUG ONLY: make room to generate some interrupts
+  //hal_delay(50); //DEBUG ONLY: make room to generate some interrupts
 }
 #endif
 
@@ -199,7 +205,7 @@ int usbh_on_hidevent_mouse(int dx, int dy, int buttons, int wheel)
 }
 
 #include "test_ui.cpp"
-void do_ui()
+void do_ui(float dt)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES);
@@ -208,11 +214,7 @@ void do_ui()
     ImVec2 p = io.MousePos;
     int mousex = int(p.x), mousey = int(p.y);
 
-    static int n = 0;
-    static uint64_t t0 = micros();
-    uint64_t t1 = micros();
-    io.DeltaTime = (t1-t0)*1e-6;
-    t0 = t1;
+    io.DeltaTime = dt;
 
     ImGui::NewFrame();
     uint32_t bgcolor = do_test_ui();
@@ -291,21 +293,29 @@ void operator delete(void *p) {
    return ImGui::MemFree(p);
 }
 #else
-int usbh_on_hidevent_mouse(int mousex, int mousey, int buttons, int wheel)
+int usbh_on_hidevent_mouse(int dx, int dy, int buttons, int wheel)
 {
   static int lastx = FB_WIDTH/2, lasty = FB_HEIGHT/2;
   uint32_t color = 0;
   //fancy color select algorithm
   if(buttons & 1) color ^= 0x4080FF;
   if(buttons & 2) color ^= 0x80FF40;
-  if(buttons && mousey < lasty) color = ~color;
-        
-  fb_fillrect(lastx < mousex ? lastx : mousex, lasty < mousey ? lasty : mousey,
-    lastx < mousex ? mousex : lastx, lasty < mousey ? mousey : lasty,
-    color);
+  if(buttons && dy < 0) color = ~color;
+  
+  int x0 = lastx, y0 = lasty;
+  lastx += dx; if(lastx < 0) lastx = 0; else if(lastx > FB_WIDTH-1) lastx = FB_WIDTH-1;
+  lasty += dy; if(lasty < 0) lasty = 0; else if(lasty > FB_HEIGHT-1) lasty = FB_HEIGHT-1;
+  int x1 = lastx, y1 = lasty;
 
-  printf("x %d (%+d), y %d (%+d), buttons 0x%02X wheel %d\n", mousex, mousex-lastx, mousey, mousey-lasty, buttons, wheel);
-  lastx = mousex; lasty = mousey;
+  fb_fillrect(
+    x0 < x1 ? x0 : x1,
+    y0 < y1 ? y0 : y1,
+    x1 > x0 ? x1 : x0,
+    y1 > y0 ? y1 : y0,
+    color
+    );
+
+  printf("x %d (%+d), y %d (%+d), buttons 0x%02X wheel %d\n", lastx, dx, lasty, dy, buttons, wheel);
   
   return true; //process all mouse events
 }
@@ -316,16 +326,16 @@ int usbh_on_hidevent_keyboard(uint8_t modifiers, uint8_t key, int pressed, char 
   return true;
 }
 
-void do_ui()
+void do_ui(float dt)
 {
-  delay(1000/60); //FIXME: delay required to avoid mouse acelleration algorithm issues
+  hal_delay(1000/200); //limit FPS
 }
 
 void ui_init()
 {
   fb_init();
   printf("Dummy UI init...\n");
-  delay(100);
+  hal_delay(200);
   printf("Dummy UI done\n");
 }
 

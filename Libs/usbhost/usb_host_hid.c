@@ -6,22 +6,11 @@
 #define MOUSE_ACCEL_FACTOR (0.9/60) //enable mouse acceleration
 #define MOUSE_ACCEL_SMOOTH .05 //avoid jumps in speed
 
-void usbh_hid_poll(void)
+void usbh_hid_poll(float dt)
 {
   bool updateui = true;
   for(;;)
   {
-  static uint64_t t0;
-  static int first_pass = true;
-  if(first_pass)
-  {
-    first_pass = false;
-    t0 = micros();
-  }
-  uint64_t t1 = micros();
-  float dt = (t1-t0)*1e-6;
-  t0 = t1;
-
     hid_event evt;
     switch(usbh_hid_process(&evt, updateui, dt))
     {
@@ -36,14 +25,8 @@ void usbh_hid_poll(void)
         if(!updateui) continue;
         break;
     }
-#if 1//def USBHOST_USE_IMGUI
-  static int frame = 0;
-  if(!(++frame % 60))
-    printf("FPS %.1f\n", 1./dt);
-#endif
     break;
   }
-
 }
 
 hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)

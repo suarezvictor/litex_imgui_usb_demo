@@ -366,7 +366,7 @@ extern hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
 extern void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
 void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size); //internal function, called by usbh_pins_init
 void usbh_pins_init(int DP_P0, int DM_P0, int DP_P1, int DM_P1, int queue_size);
-void usbh_hid_poll(void);
+void usbh_hid_poll(float dt); //call with time passed
 
 //general USB events
 void USBHOST_WEAK usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data);
