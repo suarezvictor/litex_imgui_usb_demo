@@ -363,7 +363,6 @@ extern hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
 extern void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
 void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size); //internal function, called by usbh_pins_init
 void usbh_pins_init(int DP_P0, int DM_P0, int DP_P1, int DM_P1, int queue_size);
-void usbh_hid_poll(float dt); //call with time passed
 
 //general USB events
 void USBHOST_WEAK usbh_on_message_decode(uint8_t src, uint8_t len, uint8_t *data);
@@ -391,6 +390,7 @@ typedef union
 } hid_event;
 
 hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt);
+hid_protocol_t usbh_hid_poll(float dt); //call with time passed
 int USBHOST_WEAK usbh_on_hidevent_keyboard(uint8_t modifiers, uint8_t key, int pressed, char inputchar);
 int USBHOST_WEAK usbh_on_hidevent_mouse(int dx, int dy, int buttons, int wheel);
 void USBHOST_WEAK usbh_on_hiddata_log(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);

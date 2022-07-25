@@ -6,13 +6,15 @@
 #define MOUSE_ACCEL_FACTOR (0.9/60) //enable mouse acceleration
 #define MOUSE_ACCEL_SMOOTH .05 //avoid jumps in speed
 
-void usbh_hid_poll(float dt)
+hid_protocol_t usbh_hid_poll(float dt)
 {
   bool updateui = true;
+  hid_protocol_t protocol;
   for(;;)
   {
     hid_event evt;
-    switch(usbh_hid_process(&evt, updateui, dt))
+    protocol = usbh_hid_process(&evt, updateui, dt);
+    switch(protocol)
     {
       case USB_HID_PROTO_KEYBOARD:
         if(!usbh_on_hidevent_keyboard) break;
@@ -29,6 +31,7 @@ void usbh_hid_poll(float dt)
     }
     break;
   }
+  return protocol;
 }
 
 hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
