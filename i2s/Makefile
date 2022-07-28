@@ -6,8 +6,8 @@ LDFLAGS += -nostartfiles
 
 all: main.elf
 
-main.elf: main.o crt0.o isr.o
-	$(CC) $< crt0.o isr.o \
+main.elf: main.o crt0.o isr.o litex_i2s.o
+	$(CC) $< crt0.o isr.o litex_i2s.o \
 		$(LDFLAGS) -T linker.ld \
 		-N -o $@ \
 		$(PACKAGES:%=-L$(BUILD_DIR)/software/%) \
