@@ -9,11 +9,17 @@
 #include "uart.h"
 
 static inline void i2s_tx_enable(void) { i2s_tx_tx_ctl_enable_write(1); }
+static inline void i2s_tx_disable(void) { i2s_tx_tx_ctl_enable_write(0); }
 static inline void i2s_tx_enqueue_sample(uint32_t sample) { *(uint32_t*) I2S_TX_MEMADDR = sample; }
 static inline int i2s_tx_full(void) { return i2s_tx_tx_stat_full_read(); }
 static inline int i2s_tx_almostfull(void) { return i2s_tx_tx_stat_almostfull_read(); }
 static inline void i2s_tx_clear(void) { i2s_tx_tx_ctl_reset_write(1); }
 static inline unsigned i2s_tx_frequency(void) { return i2s_tx_tx_conf_lrck_freq_read(); }
+
+extern volatile unsigned i2s_tx_samples_count;
+static inline unsigned i2s_tx_played_count(void) { return i2s_tx_samples_count; }
+
+volatile unsigned i2s_tx_samples_count = 0;
 
 static void i2s_tx_start(void)
 {
@@ -25,11 +31,11 @@ static void i2s_tx_start(void)
 
 static void i2s_tx_stop(void)
 {
-  i2s_tx_ev_enable_tx_ready_write(0);
-  irq_setmask(irq_getmask() & ~(1 << I2S_TX_INTERRUPT));
+	i2s_tx_disable();
+	i2s_tx_ev_enable_tx_ready_write(0);
+	irq_setmask(irq_getmask() & ~(1 << I2S_TX_INTERRUPT));
 }
 
-volatile int i2s_tx_samples_count = 0;
 
 void audio_send(size_t count)
 {
@@ -55,13 +61,17 @@ int main(int argc, char **argv) {
     uart_init();
 
     unsigned freq = i2s_tx_frequency();
-    printf("Audio frequency %d\n", freq, i2s_tx_samples_count);
+    printf("Audio frequency %d\n", freq, freq);
 
     i2s_tx_start();
     for(;;)
     {
-      printf("played samples %d, elapsed time %ds\n", i2s_tx_samples_count, i2s_tx_samples_count/freq/2);
-      if(i2s_tx_samples_count/2 > freq*10)
+      unsigned count = i2s_tx_played_count();
+      printf("played samples %d, elapsed time %ds\n", count, count/freq/2);
+      if(i2s_tx_almostfull())
+        printf("I2S ALMOST FULL!\n");
+      
+      if(count/2 > freq*10)
         i2s_tx_stop();
     }
 
