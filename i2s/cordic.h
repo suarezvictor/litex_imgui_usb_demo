@@ -16,8 +16,7 @@
 //Constants
 #define CORDIC_1K 0x26DD3B6A
 #define CORDIC_SHIFT 30
-#define CORDIC_MUL (1<<CORDIC_SHIFT)
-#define CORDIC_PI (int64_t)(CORDIC_MUL*M_PI)
+#define CORDIC_HALF_PI (uint32_t)((1<<(CORDIC_SHIFT-1))*M_PI)
 #define CORDIC_NTAB 32
 #define CORDIC_N_ITER 32 //can be lower
 
@@ -42,7 +41,7 @@ static inline cordic_fixed32_t cordic_fixed32_n32(int32_t theta)
   int32_t z = theta;
   for (k=0; k<CORDIC_N_ITER; k=k+1)
   {
-    d = z>>31;
+    d = z>>31; //sign extends
     //get sign. for other architectures, you might want to use the more portable version
     //d = z>=0 ? 0 : -1;
     tx = x - (((y>>k) ^ d) - d);
@@ -57,11 +56,11 @@ static inline cordic_fixed32_t cordic_fixed32_n32(int32_t theta)
 
 static inline int32_t cordic_sin(int64_t x) //0 to 2*PI
 {
-  if(x < CORDIC_PI/2) 
+  if(x < CORDIC_HALF_PI) 
     return cordic_fixed32_n32(x).s;
-  if(x < CORDIC_PI) 
-    return cordic_fixed32_n32(x-CORDIC_PI/2).c;
-  return -cordic_fixed32_n32(x-3*CORDIC_PI/2).c;
+  if(x < 2*CORDIC_HALF_PI) 
+    return cordic_fixed32_n32(x-CORDIC_HALF_PI).c;
+  return -cordic_fixed32_n32((x-CORDIC_HALF_PI)-2*CORDIC_HALF_PI).c; //succesive substraction to avoud overflows
 }
 
 #endif //__CORDIC_H__
