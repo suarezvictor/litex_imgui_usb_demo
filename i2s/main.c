@@ -15,11 +15,14 @@ static inline int i2s_tx_full(void) { return i2s_tx_tx_stat_full_read(); }
 static inline int i2s_tx_almostfull(void) { return i2s_tx_tx_stat_almostfull_read(); }
 static inline void i2s_tx_clear(void) { i2s_tx_tx_ctl_reset_write(1); }
 static inline unsigned i2s_tx_frequency(void) { return i2s_tx_tx_conf_lrck_freq_read(); }
+static inline unsigned i2s_tx_get_default_channels(void) { return 2; } 
+static inline unsigned i2s_tx_get_bits(void) { return i2s_tx_tx_conf_sample_width_read(); } 
 
 extern volatile unsigned i2s_tx_samples_count;
 static inline unsigned i2s_tx_played_count(void) { return i2s_tx_samples_count; }
 
 volatile unsigned i2s_tx_samples_count = 0;
+void __attribute__((weak)) i2s_audio_send_cb(size_t count);
 
 static void i2s_tx_start(void)
 {
@@ -36,8 +39,14 @@ static void i2s_tx_stop(void)
 	irq_setmask(irq_getmask() & ~(1 << I2S_TX_INTERRUPT));
 }
 
+void i2s_tx_isr(void)
+{
+    if(i2s_audio_send_cb)
+		i2s_audio_send_cb(I2S_FIFO_DEPTH);
+	i2s_tx_ev_pending_write(i2s_tx_ev_pending_read()); //clears IRQ
+}
 
-void audio_send(size_t count)
+void i2s_audio_send_cb(size_t count)
 {
 	static int32_t sample = 0;
  	for(size_t i = 0; i < count; ++i)
@@ -48,10 +57,24 @@ void audio_send(size_t count)
 	}
 }
 
-void i2s_tx_isr(void)
+void i2s_demo(void)
 {
-	audio_send(I2S_FIFO_DEPTH);
-	i2s_tx_ev_pending_write(i2s_tx_ev_pending_read()); //clears IRQ
+    unsigned freq = i2s_tx_frequency();
+    unsigned channels = i2s_tx_get_default_channels();
+    unsigned bits = i2s_tx_get_bits();
+    printf("Audio frequency: %d, channels %d, bits %d\n", freq, channels, bits);
+
+    i2s_tx_start();
+    for(;;)
+    {
+      unsigned count = i2s_tx_played_count();
+      printf("Played samples: %d, elapsed time: %ds\n", count, count/freq/channels);
+      if(i2s_tx_almostfull())
+        printf("I2S ALMOST FULL!\n");
+      
+      if(count/channels > freq*10)
+        i2s_tx_stop();
+    }
 }
 
 int main(int argc, char **argv) {
@@ -59,22 +82,8 @@ int main(int argc, char **argv) {
     irq_setie(1);
 
     uart_init();
-
-    unsigned freq = i2s_tx_frequency();
-    printf("Audio frequency %d\n", freq, freq);
-
-    i2s_tx_start();
-    for(;;)
-    {
-      unsigned count = i2s_tx_played_count();
-      printf("played samples %d, elapsed time %ds\n", count, count/freq/2);
-      if(i2s_tx_almostfull())
-        printf("I2S ALMOST FULL!\n");
-      
-      if(count/2 > freq*10)
-        i2s_tx_stop();
-    }
-
+    i2s_demo();
+    
     irq_setie(0);
     irq_setmask(~0);
 }
