@@ -1466,6 +1466,7 @@ void render_buf( float* buf, int len ) //buf: LRLRLR..; len - number of frames (
     dc_psl = dc_sl; dc_psr = dc_sr;
 }
 
+#ifdef AUDIO_DEMO_STANDALONE
 void sdl_audio_callback( void* udata, Uint8* stream, int len )
 {
     render_buf( (float*)stream, len / 8 );
@@ -1573,3 +1574,4 @@ int main( int argc, char* argv[] )
     sound_close();
     return 0;
 }
+#endif //AUDIO_DEMO_STANDALONE

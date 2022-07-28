@@ -11,13 +11,15 @@
 int i2s_audio_send_cb(size_t count)
 {
 	static int32_t sample = 0;
-	uint32_t prev_sample = sample;
- 	for(size_t i = 0; i < count; ++i)
+	static float t = 0;
+ 	for(size_t i = 0; i < count; i+=2)
 	{
+	  t += 1./44100;
 	  sample += (1<<14);
-	  i2s_tx_enqueue_sample(sample);
+	  i2s_tx_enqueue_sample(sample); //left
+	  i2s_tx_enqueue_sample(0); //right
 	}
-	if(sample < prev_sample)
+	if(t > 5)
 	  return -1; //request pause
 	return count;
 }
@@ -34,8 +36,6 @@ void i2s_demo(void)
     {
       unsigned count = i2s_tx_played_count();
       printf("Played samples: %d, elapsed time: %ds\n", count, count/freq/channels);
-      if(i2s_tx_almostfull())
-        printf("I2S ALMOST FULL!\n");
     }
     i2s_tx_stop();
     printf("Stopped\n");
