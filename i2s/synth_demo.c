@@ -40,11 +40,12 @@ IN THE SOFTWARE.
     #include <unistd.h> //sleep()
 #endif
 
-#define one_tick_size (int)6000
+#define SAMPLE_RATE 24000
+#define one_tick_size (int)((SAMPLE_RATE)/7)
 #define chan_num (int)8 //Number of channels (synth tracks)
 
-int srate = 44100;
-int bufsize = 1024;
+int srate = SAMPLE_RATE;
+int bufsize = 128; //amount of RL channels (actual buffer is double than that)
 int exit_request = 0;
 int fadeout = 0;
 float fadeout_vol = 1;
@@ -1072,7 +1073,10 @@ void main_callback( float* buf, int len )
     int s;
     int c;
     uint8_t* cur_line;
-    float res1, res2;
+    float res1;
+#ifdef FULL_DETAIL
+    float res2;
+#endif
     float freq;
     for( a = 0; a < len; a++ ) { buf[ a << 1 ] = 0; buf[ ( a << 1 ) + 1 ] = 0; } //Clear buffer
     //Render:
@@ -1086,7 +1090,11 @@ void main_callback( float* buf, int len )
 	}
 	if( timer == 0 ) tick_changed = 1;
 	//Synths (channels):
+#ifdef FULL_DETAIL
 	for( s = 0; s < chan_num; s++ )
+#else
+	s = 2;
+#endif
 	{
 	    cur_line = patterns[ cur_pattern ] + ( tick * chan_num );
 	    if( cur_line[ s ] == 255 ) 
@@ -1099,6 +1107,7 @@ void main_callback( float* buf, int len )
 	    if( syn[ s ] == 0 ) continue;
 	    switch( syn[ s ] )
 	    {
+#ifdef FULL_DETAIL
 		case SYNTH_PAD: 
 		    if( tick_changed )
 		    {
@@ -1261,11 +1270,19 @@ void main_callback( float* buf, int len )
 		    buf[ ( a << 1 ) + 1 ] += res2;
 		    break;
 
-		case SYNTH_BASS:
+#endif
 		case SYNTH_BASS_TINY:
+		case SYNTH_BASS:
 		    if( tick_changed )
 		    {
-			bass_freq[ s ] = pow( 2, (float)( cur_line[ s ] + offset ) / 12.0F );
+#ifdef FULL_DETAIL			
+		    float note = (float)( cur_line[ s ] + offset );
+			bass_freq[ s ] = powf( 2, note / 12.0F );
+#else
+			//TODO: make table
+		    int note = (float)( cur_line[ s ] + offset );
+			bass_freq[ s ] = powf( 2, note / 12.0F );
+#endif
 			bass_tdelta[ s ] = bass_freq[ s ] / srate;
 			bass_timer[ s ] = 0;
 			effect_timer[ s ] = 1;
@@ -1275,37 +1292,64 @@ void main_callback( float* buf, int len )
 		    effect_timer[ s ] *= 0.9999;
 		    if( cur_line[ s ] )
 		    {
-			res1 = sin( bass_timer[ s ] ) + sin( bass_timer[ s ] * 2.01 );
-			res2 = cos( bass_timer[ s ] ) + cos( bass_timer[ s ] * 2.006 );
+#ifdef FULL_DETAIL		
+			res1 = sinf( bass_timer[ s ] ) + sinf( bass_timer[ s ] * 2.01 );
+#else
+			res1 = sinf( bass_timer[ s ] ) + sinf( bass_timer[ s ] * 2.01 ); //second term is optional
+#endif
 			if( res1 > bound ) res1 = 0.05;
 			if( res1 < -bound ) res1 = -0.05;
+#ifdef FULL_DETAIL		
+			res2 = cosf( bass_timer[ s ] ) + cosf( bass_timer[ s ] * 2.006 );
 			if( res2 > bound ) res2 = 0.05;
 			if( res2 < -bound ) res2 = -0.05;
+#endif
 		    }
 		    else
 		    {
 			res1 = 0;
+#ifdef FULL_DETAIL			
 			res2 = 0;
+#endif
 		    }
-		    if( bound > 0.1 ) { res1 *=  effect_timer[ s ]; res2 *= effect_timer[ s ]; }
+		    if( bound > 0.1 ) {
+		    res1 *=  effect_timer[ s ];
+#ifdef FULL_DETAIL
+		    res2 *= effect_timer[ s ];
+#endif
+		    }
 		    if( syn[ s ] == SYNTH_BASS_TINY ) 
 		    {
-			res1 *= 0.9; res2 *= 0.9;
+			res1 *= 0.9;
+#ifdef FULL_DETAIL
+			res2 *= 0.9;
+#endif
 		    }
 		    else
 		    {
 			if( !rec_play )
 			{
+#ifdef FULL_DETAIL
 			    flanger_put( res1, res2 );
-			    res1 /= 1.5; res2 /= 1.5;
+			    res1 *= 1./1.5;
 			    flanger_get( &res1, &res2 );
+			    res2 *= 1./1.5;
+#else			    
+			    flanger_put( res1, res1 );
+			    res1 *= 1./1.5;
+#endif
 			}
 		    }
+#ifdef FULL_DETAIL
 		    echo_put( res1, res2 );
 		    buf[ ( a << 1 ) ] += res1;
 		    buf[ ( a << 1 ) + 1 ] += res2;
+#else
+		    buf[ ( a << 1 ) ] += res1;
+		    buf[ ( a << 1 ) + 1 ] += res1;
+#endif
 		    break;
-
+#ifdef FULL_DETAIL
 		case SYNTH_HAT:
 		    if( tick_changed ) 
 		    {
@@ -1392,13 +1436,19 @@ void main_callback( float* buf, int len )
 		    res1 = 0;
 		    res2 = 0;
 		    break;
+#endif
 	    }
 	}
 	//buf[ ( a << 1 ) ] = 0;
 	//buf[ ( a << 1 ) + 1 ] = 0;
+#ifdef FULL_DETAIL
 	echo_get( &res1, &res2 );
 	buf[ ( a << 1 ) ] += res1;
 	buf[ ( a << 1 ) + 1 ] += res2;
+#else
+	buf[ ( a << 1 ) ] += res1;
+	buf[ ( a << 1 ) + 1 ] += res1;
+#endif
 	if( start_recorder )
 	{
 	    rec1[ rec_ptr ] = buf[ ( a << 1 ) ];
@@ -1414,15 +1464,21 @@ void main_callback( float* buf, int len )
 	}
 	if( rec_play )
 	{
+#ifdef FULL_DETAIL
 	    flanger_put( rec1[ rec_ptr ] / 2, rec2[ rec_ptr ] / 2 );
 	    res1 = 0; res2 = 0;
 	    flanger_get( &res1, &res2 );
 	    buf[ ( a << 1 ) ] += res1;
-    	    buf[ ( a << 1 ) + 1 ] += res2;
+	    buf[ ( a << 1 ) + 1 ] += res2;
+#else
+	    buf[ ( a << 1 ) ] += res1;
+	    buf[ ( a << 1 ) + 1 ] += res1;
+#endif
 	    rec_ptr--;
 	    if( rec_ptr < 0 ) rec_ptr = rec_size - 1;
 	}
 	timer++;
+#ifdef FULL_DETAIL
 	if( fadeout )
 	{
 	    fadeout_vol -= 0.000001;
@@ -1430,6 +1486,7 @@ void main_callback( float* buf, int len )
 	    buf[ ( a << 1 ) ] *= fadeout_vol;
 	    buf[ ( a << 1 ) + 1 ] *= fadeout_vol;
 	}
+#endif
     }
 }
 
