@@ -8,14 +8,18 @@
 #include "uart.h"
 #include "litex_i2s.h"
 
-void i2s_audio_send_cb(size_t count)
+int i2s_audio_send_cb(size_t count)
 {
 	static int32_t sample = 0;
+	uint32_t prev_sample = sample;
  	for(size_t i = 0; i < count; ++i)
 	{
-      sample += 100000;
+	  sample += (1<<14);
 	  i2s_tx_enqueue_sample(sample);
 	}
+	if(sample < prev_sample)
+	  return -1; //request pause
+	return count;
 }
 
 void i2s_demo(void)
@@ -26,16 +30,17 @@ void i2s_demo(void)
     printf("Audio frequency: %d, channels %d, bits %d\n", freq, channels, bits);
 
     i2s_tx_start();
-    for(;;)
+    while(i2s_is_playing())
     {
       unsigned count = i2s_tx_played_count();
       printf("Played samples: %d, elapsed time: %ds\n", count, count/freq/channels);
       if(i2s_tx_almostfull())
         printf("I2S ALMOST FULL!\n");
-      
-      if(count/channels > freq*10)
-        i2s_tx_stop();
     }
+    i2s_tx_stop();
+    printf("Stopped\n");
+
+    for(;;); //keeps interrupts enabled for flushing uart data
 }
 
 int main(int argc, char **argv) {
