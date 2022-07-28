@@ -54,13 +54,19 @@ static inline cordic_fixed32_t cordic_fixed32_n32(int32_t theta)
   return rv;
 }
 
-static inline int32_t cordic_sin(int64_t x) //0 to 2*PI
+static inline int32_t cordic_sin(int64_t x) //-pi to pi
 {
+  x += CORDIC_HALF_PI; //-pi/2 to 3*pi/2
   if(x < CORDIC_HALF_PI) 
-    return cordic_fixed32_n32(x).s;
-  if(x < 2*CORDIC_HALF_PI) 
-    return cordic_fixed32_n32(x-CORDIC_HALF_PI).c;
-  return -cordic_fixed32_n32((x-CORDIC_HALF_PI)-2*CORDIC_HALF_PI).c; //succesive substraction to avoud overflows
+  {
+    return cordic_fixed32_n32(x).c; //-pi/2 to pi/2
+  }
+  else
+  {
+    //pi/2 to 3*pi/2
+    x = 2*CORDIC_HALF_PI-x;
+    return -cordic_fixed32_n32(x).c; //-pi/2 to pi/2
+  }
 }
 
 #endif //__CORDIC_H__

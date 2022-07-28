@@ -22,9 +22,9 @@ int FAST_CODE synth(unsigned count)
  	for(size_t i = 0; i < count; i+=2)
 	{
 	  wt += f*4ull*CORDIC_HALF_PI/44100;
-	  if(wt > 4ull*CORDIC_HALF_PI)
+	  if(wt > 2*CORDIC_HALF_PI)
 	  {
-	    wt -= 4ull*CORDIC_HALF_PI; //angle wrapping
+	    wt -= 4ull*CORDIC_HALF_PI; //angle wrapping (-pi to pi)
 	    ++cycle_count;
 	  }
 	  int32_t sample = cordic_sin(wt)>>(CORDIC_SHIFT-bits+1);
