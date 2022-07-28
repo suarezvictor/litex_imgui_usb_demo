@@ -63,49 +63,36 @@ static inline cordic_fixed32_t FAST_CODE cordic_fixed32_n32(int32_t theta)
   return rv;
 }
 
-
-// Cordic limited to float -pi/2 -- pi/2 per fixed point cordic implementation
-typedef struct { float s, c; } cordic_float_t;
-
-static inline cordic_float_t FAST_CODE cordic_float_fixed32_n32(float theta)
+static inline int32_t FAST_CODE cordic_sin(int64_t x) //0 to 2*PI
 {
-	// Convert float to fixed
-	int32_t theta_fixed = theta*CORDIC_MUL;
-	
-	// Do fixed math
-	cordic_fixed32_t fixed_result = cordic_fixed32_n32(theta_fixed);
-
-	// Convert fixed to float
-	cordic_float_t rv;
-	rv.s = ((float)fixed_result.s)*(1.0/CORDIC_MUL);
-	rv.c = ((float)fixed_result.c)*(1.0/CORDIC_MUL);
-	return rv;
-}
-
-static inline float FAST_CODE fast_sin(float x) //0 to 2*PI
-{
-  if(x < M_PI/2) 
-    return cordic_float_fixed32_n32(x).s;
-  if(x < M_PI) 
-    return cordic_float_fixed32_n32(x-M_PI/2).c;
-  return -cordic_float_fixed32_n32(x-3*M_PI/2).c;
+  if(x < (int64_t)(M_PI/2*CORDIC_MUL)) 
+    return cordic_fixed32_n32(x).s;
+  if(x < (int64_t)(M_PI*CORDIC_MUL)) 
+    return cordic_fixed32_n32(x-(int64_t)(M_PI/2*CORDIC_MUL)).c;
+  return -cordic_fixed32_n32(x-(int64_t)(3*M_PI/2*CORDIC_MUL)).c;
 }
 
 int FAST_CODE synth(unsigned count)
 {
-	static float wt = 0;
+	static int64_t wt = 0;
+    const int f = 1000; //Hz
 	const int bits = 24; //i2s_tx_get_bits();
+	static int cycle_count = 0;
  	for(size_t i = 0; i < count; i+=2)
 	{
-	  wt += 1000.f*2*M_PI/44100;
-	  if(wt > 2*M_PI) wt -= 2*M_PI; //angle wrapping
-	  static const float amp = ((1<<(bits-1))-1.f);
-	  int32_t sample = amp*fast_sin(wt);
+	  wt += f*(int64_t)(CORDIC_MUL*2*M_PI)/44100;
+	  if(wt > (int64_t)(2*M_PI*CORDIC_MUL))
+	  {
+	    wt -= (int64_t)(2*M_PI*CORDIC_MUL); //angle wrapping
+	    ++cycle_count;
+	  }
+	  static const float amp = ((1<<(bits-1))-1.f)*(1.0/CORDIC_MUL);
+	  int32_t sample = amp*cordic_sin(wt);
 	  i2s_tx_enqueue_sample(sample); //left
 	  i2s_tx_enqueue_sample(sample); //right
 	}
-	//if(wt > 5*2*M_PI)
-	//  return -1; //request pause
+	if(cycle_count > 5*f)
+	  return -1; //request pause
 	return count;
 }
 
