@@ -1,1 +1,1 @@
-INCLUDE ../build/digilent_arty/software/include/generated/regions.ld
+INCLUDE ./build/arty/software/include/generated/regions.ld
