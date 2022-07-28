@@ -3,7 +3,7 @@ BUILD_DIR=./build/arty
 include makefile.inc
 CFLAGS += -O3 -ffast-math
 LDFLAGS += -nostartfiles
-LIBS:=$(LIBS:libcompiler_rt=libgcc) #this enables floating point functions
+#LIBS:=$(LIBS:libcompiler_rt=libgcc) #this enables floating point functions
 
 all: main.elf
 
