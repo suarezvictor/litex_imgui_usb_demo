@@ -11,7 +11,7 @@ void i2s_tx_stop(void);
 
 static inline void i2s_tx_play(void) { i2s_tx_tx_ctl_enable_write(1); }
 static inline void i2s_tx_pause(void) { i2s_tx_tx_ctl_enable_write(0); }
-static inline void i2s_tx_enqueue_sample(uint32_t sample) { *(uint32_t*) I2S_TX_MEMADDR = sample; }
+static inline void i2s_tx_enqueue_sample(uint32_t sample) { *(volatile uint32_t*) I2S_TX_MEMADDR = sample; }
 static inline int i2s_tx_full(void) { return i2s_tx_tx_stat_full_read(); }
 static inline int i2s_tx_almostfull(void) { return i2s_tx_tx_stat_almostfull_read(); }
 static inline void i2s_tx_clear(void) { i2s_tx_tx_ctl_reset_write(1); }
