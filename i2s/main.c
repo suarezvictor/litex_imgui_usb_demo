@@ -26,6 +26,7 @@
 //Constants
 #define CORDIC_1K 0x26DD3B6A
 #define CORDIC_MUL 1073741824.000000
+#define CORDIC_PI (int64_t)(CORDIC_MUL*M_PI)
 #define CORDIC_NTAB 32
 #define CORDIC_N_ITER 32 //can be lower
 
@@ -65,11 +66,11 @@ static inline cordic_fixed32_t FAST_CODE cordic_fixed32_n32(int32_t theta)
 
 static inline int32_t FAST_CODE cordic_sin(int64_t x) //0 to 2*PI
 {
-  if(x < (int64_t)(M_PI/2*CORDIC_MUL)) 
+  if(x < CORDIC_PI/2) 
     return cordic_fixed32_n32(x).s;
-  if(x < (int64_t)(M_PI*CORDIC_MUL)) 
-    return cordic_fixed32_n32(x-(int64_t)(M_PI/2*CORDIC_MUL)).c;
-  return -cordic_fixed32_n32(x-(int64_t)(3*M_PI/2*CORDIC_MUL)).c;
+  if(x < CORDIC_PI) 
+    return cordic_fixed32_n32(x-CORDIC_PI/2).c;
+  return -cordic_fixed32_n32(x-3*CORDIC_PI/2).c;
 }
 
 int FAST_CODE synth(unsigned count)
@@ -80,14 +81,13 @@ int FAST_CODE synth(unsigned count)
 	static int cycle_count = 0;
  	for(size_t i = 0; i < count; i+=2)
 	{
-	  wt += f*(int64_t)(CORDIC_MUL*2*M_PI)/44100;
-	  if(wt > (int64_t)(2*M_PI*CORDIC_MUL))
+	  wt += f*2*CORDIC_PI/44100;
+	  if(wt > 2*CORDIC_PI)
 	  {
-	    wt -= (int64_t)(2*M_PI*CORDIC_MUL); //angle wrapping
+	    wt -= 2*CORDIC_PI; //angle wrapping
 	    ++cycle_count;
 	  }
-	  static const float amp = ((1<<(bits-1))-1.f)*(1.0/CORDIC_MUL);
-	  int32_t sample = amp*cordic_sin(wt);
+	  int32_t sample = cordic_sin(wt)/(((int64_t)(CORDIC_MUL))>>(bits-1));
 	  i2s_tx_enqueue_sample(sample); //left
 	  i2s_tx_enqueue_sample(sample); //right
 	}
