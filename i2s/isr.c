@@ -6,6 +6,8 @@
 #include <libbase/uart.h>
 
 void __attribute__((weak)) timer0_isr(void);
+void __attribute__((weak)) i2s_tx_isr(void);
+void __attribute__((weak)) i2s_rx_isr(void);
 
 #ifndef CONFIG_CPU_HAS_INTERRUPT
 #error CONFIG_CPU_HAS_INTERRUPT should be enabled
@@ -28,6 +30,20 @@ void isr_handler(void)
 	{
 		if(timer0_isr)
 			timer0_isr();
+	}
+#endif
+#if defined(I2S_TX_INTERRUPT) && !defined(I2S_TX_POLLING)
+	if(irqs & (1 << I2S_TX_INTERRUPT))
+	{
+		if(i2s_tx_isr)
+			i2s_tx_isr();
+	}
+#endif
+#if defined(I2S_RX_INTERRUPT) && !defined(I2S_RX_POLLING)
+	if(irqs & (1 << I2S_RX_INTERRUPT))
+	{
+		if(i2s_rx_isr)
+			i2s_rx_isr();
 	}
 #endif
 }
