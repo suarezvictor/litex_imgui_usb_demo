@@ -15,7 +15,6 @@ void i2s_audio_send_cb(size_t count)
 	{
       sample += 100000;
 	  i2s_tx_enqueue_sample(sample);
-      ++i2s_tx_samples_count;
 	}
 }
 

@@ -7,7 +7,10 @@
 void i2s_tx_isr(void)
 {
     if(i2s_audio_send_cb)
+    {
 		i2s_audio_send_cb(I2S_FIFO_DEPTH);
+		i2s_tx_samples_count += I2S_FIFO_DEPTH;
+	}
 	i2s_tx_ev_pending_write(i2s_tx_ev_pending_read()); //clears IRQ
 }
 
