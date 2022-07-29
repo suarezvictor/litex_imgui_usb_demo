@@ -13,6 +13,8 @@
 #define FAST_CODE __attribute__ ((section (".fast_text")))
 #define FAST_DATA __attribute__ ((section (".fast_data")))
 
+uint16_t audio_volume = 0xFFFF/2;
+
 int FAST_CODE synth(unsigned count)
 {
 	static int64_t wt = 0;
@@ -27,7 +29,7 @@ int FAST_CODE synth(unsigned count)
 	    wt -= 4ull*CORDIC_HALF_PI; //angle wrapping (-pi to pi)
 	    ++cycle_count;
 	  }
-	  int32_t sample = cordic_sin(wt)>>(CORDIC_SHIFT-bits+1);
+	  int32_t sample = ((uint64_t)audio_volume*cordic_sin(wt))>>(16+CORDIC_SHIFT-bits+1);
 	  i2s_tx_enqueue_sample(sample); //left
 	  i2s_tx_enqueue_sample(sample); //right
 	}
