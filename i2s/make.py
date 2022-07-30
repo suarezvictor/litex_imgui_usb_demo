@@ -1,3 +1,31 @@
+"""
+BSD 2-Clause License
+
+Copyright (c) 2020, Zephyr on LiteX VexRiscv Developers
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 #!/usr/bin/env python3
 
 import argparse
@@ -74,9 +102,9 @@ def main():
         if args.with_mmcm:
             soc.add_mmcm(board.mmcm_freq)
         if args.with_i2s:
-            #if not args.with_mmcm:
-            #    print("Adding mmcm implicitly, cause i2s core needs special clk signals")
-            #    soc.add_mmcm(board.mmcm_freq)
+            if not args.with_mmcm:
+                print("Adding mmcm implicitly, cause i2s core needs special clk signals")
+                soc.add_mmcm(board.mmcm_freq)
             soc.add_i2s()
 
         build_dir = os.path.join("build", board_name)

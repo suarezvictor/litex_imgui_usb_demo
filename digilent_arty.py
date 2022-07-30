@@ -6,6 +6,7 @@
 # Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2020 Zephyr on LiteX VexRiscv Developers
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -212,7 +213,9 @@ class Blitter(Module, AutoCSR): #TODO: use a DMA of pixel size and another of fu
         self.comb += dma_writer.sink.valid.eq(1)
 
 class BaseSoC(SoCCore):
+    #FIXME: how to allocate this without conflict
     interrupt_map = {"i2s_rx": 6, "i2s_tx": 7}
+    mem_map = {"i2s_rx": 0xb1000000, "i2s_tx": 0xb2000000 }
 
     def __init__(self, variant="a7-35", toolchain="vivado", sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, eth_ip="192.168.1.50", eth_dynamic_ip=False, with_jtagbone=True, with_mapped_flash=False, with_spi_flash = False,
         with_pmod_gpio = False, with_led_chaser = True, **kwargs):
@@ -354,9 +357,7 @@ class BaseSoC(SoCCore):
         with_i2s = True
         if with_i2s:
             self.platform.add_extension(arty._i2s_pmod_io)
-            #FIXME: how to allocate this without conflict
-            self.mem_map.update({"i2s_rx": 0xb1000000, "i2s_tx": 0xb2000000 })
-            #print("interrupts:", self.interrupt_map);
+            self.add_mmcm({"i2s_rx" :  11.289e6,"i2s_tx" :  22.579e6 })
             self.add_i2s()    
 
     def add_i2s(self):
@@ -385,9 +386,8 @@ class BaseSoC(SoCCore):
             self.add_memory_region("i2s_tx", self.mem_map["i2s_tx"], i2s_mem_size, type="linker")
             self.add_wb_slave(self.mem_regions["i2s_tx"].origin, self.i2s_tx.bus, i2s_mem_size)
 
-            #FIXME: add cd_mmcm_clkout
-            #self.comb += self.platform.request("i2s_rx_mclk").eq(self.cd_mmcm_clkout["i2s_rx"].clk)
-            #self.comb += self.platform.request("i2s_tx_mclk").eq(self.cd_mmcm_clkout["i2s_tx"].clk)
+            self.comb += self.platform.request("i2s_rx_mclk").eq(self.cd_mmcm_clkout["i2s_rx"].clk)
+            self.comb += self.platform.request("i2s_tx_mclk").eq(self.cd_mmcm_clkout["i2s_tx"].clk)
 
             self.add_constant("I2S_RX_MEMADDR", self.mem_map["i2s_rx"]);
             self.add_constant("I2S_TX_MEMADDR", self.mem_map["i2s_tx"]);

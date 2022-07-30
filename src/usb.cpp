@@ -100,6 +100,7 @@ extern "C" void setup();
 void ui_init();
 void do_ui(float dt);
 
+extern "C" void audio_init(void);
 
 uint64_t t0;
 void setup()
@@ -121,6 +122,9 @@ void setup()
   static const int DM_P1 = 15; //D-
   usbh_pins_init(DP_P0, DM_P0, DP_P1, DM_P1, USBH_QUEUE_SIZE);
   //printf("setup done\n");
+
+  audio_init();
+
   
   t0 = micros();
 }
