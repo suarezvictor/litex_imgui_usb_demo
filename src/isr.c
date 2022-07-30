@@ -8,6 +8,8 @@
 #include <litex.h>
 
 void timer0_isr(void);
+void WEAK i2s_tx_isr(void);
+void WEAK i2s_rx_isr(void);
 
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 void FAST_CODE isr_handler(void) //name change to avoid conflict with default implementation FIXME: find where it is
@@ -26,6 +28,20 @@ void FAST_CODE isr_handler(void) //name change to avoid conflict with default im
 	if(irqs & (1 << TIMER0_INTERRUPT))
 	{
 		timer0_isr();
+	}
+#endif
+#if defined(I2S_TX_INTERRUPT) && !defined(I2S_TX_POLLING)
+	if(irqs & (1 << I2S_TX_INTERRUPT))
+	{
+		if(i2s_tx_isr)
+			i2s_tx_isr();
+	}
+#endif
+#if defined(I2S_RX_INTERRUPT) && !defined(I2S_RX_POLLING)
+	if(irqs & (1 << I2S_RX_INTERRUPT))
+	{
+		if(i2s_rx_isr)
+			i2s_rx_isr();
 	}
 #endif
 }

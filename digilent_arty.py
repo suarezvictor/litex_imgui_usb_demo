@@ -5,6 +5,7 @@
 #
 # Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -21,6 +22,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
 from litex.soc.cores.gpio import GPIOTristate
+from litex.soc.cores.i2s import S7I2S, I2S_FORMAT
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage
 from litex.build.generic_platform import Pins, IOStandard, Subsignal
 
@@ -196,7 +198,6 @@ class _CRG(Module):
 
         #self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
 
-# BaseSoC ------------------------------------------------------------------------------------------
 #Code based on Blitter module from https://github.com/BrunoLevy/learn-fpga/blob/cb5a64997ca95fbd521656a82b75772a0cb0d76a/LiteX/boards/radiona_ulx3s_ex.py#L54
 #(C) 2022 Bruno Levy, BSD 3-Clause License
 
@@ -205,15 +206,18 @@ class Blitter(Module, AutoCSR): #TODO: use a DMA of pixel size and another of fu
         self._value = CSRStorage(port.data_width) #this fix is to match port size
         from litedram.frontend.dma import LiteDRAMDMAWriter
         dma_writer = LiteDRAMDMAWriter(port=port, fifo_depth=16, fifo_buffered=False, with_csr=True)
+# BaseSoC ------------------------------------------------------------------------------------------
         self.submodules.dma_writer = dma_writer
         self.comb += dma_writer.sink.data.eq(self._value.storage)
         self.comb += dma_writer.sink.valid.eq(1)
 
 class BaseSoC(SoCCore):
+    interrupt_map = {"i2s_rx": 6, "i2s_tx": 7}
+
     def __init__(self, variant="a7-35", toolchain="vivado", sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, eth_ip="192.168.1.50", eth_dynamic_ip=False, with_jtagbone=True, with_mapped_flash=False, with_spi_flash = False,
         with_pmod_gpio = False, with_led_chaser = True, **kwargs):
         platform = arty.Platform(variant=variant, toolchain=toolchain)
-
+        self.platform = platform
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq, **kwargs)
@@ -270,9 +274,10 @@ class BaseSoC(SoCCore):
         # GPIOs ------------------------------------------------------------------------------------
         if with_pmod_gpio:
             #ext = arty.raw_pmod_io("pmoda")
-            pa = [f"pmoda:{i:d}" for i in range(8)] #dummy bits required by software-only USB host
+            #pa = [f"pmoda:{i:d}" for i in range(8)] #bits 0-7
+            pa = ["V15", "U16", "P14", "T11", "R12", "T14", "T15", "T16"] #bits 0-7 on Outer Digital Header
             pd = [f"pmodd:{i:d}" for i in range(8)] #USB device on PMOD-D (bits 8-16)
-            ext = [("gpio", 0, Pins(" ".join(pa + pd)), IOStandard("LVCMOS33"))]
+            ext = [("gpio", 0, Pins(" ".join(pa + pd)), IOStandard("LVCMOS33"))] #first 8 bits are dummy since required by software-only USB host
             platform.add_extension(ext)
             self.submodules.gpio = GPIOTristate(platform.request("gpio"))
 
@@ -345,6 +350,74 @@ class BaseSoC(SoCCore):
 
 
             self.comb += self.dma_reader.source.connect(self.dma_writer.sink) #Connect Reader to Writer
+            
+        with_i2s = True
+        if with_i2s:
+            self.platform.add_extension(arty._i2s_pmod_io)
+            #FIXME: how to allocate this without conflict
+            self.mem_map.update({"i2s_rx": 0xb1000000, "i2s_tx": 0xb2000000 })
+            #print("interrupts:", self.interrupt_map);
+            self.add_i2s()    
+
+    def add_i2s(self):
+            # I2S --------------------------------------------------------------------------------------
+            i2s_mem_size = 0x40000
+            i2s_fifo_depth = 256
+            # i2s rx
+            self.submodules.i2s_rx = S7I2S(
+                pads=self.platform.request("i2s_rx"),
+                fifo_depth = i2s_fifo_depth,
+                sample_width=24,
+                frame_format=I2S_FORMAT.I2S_STANDARD,
+                concatenate_channels=False
+            )
+            self.add_memory_region("i2s_rx", self.mem_map["i2s_rx"], i2s_mem_size, type="linker")
+            self.add_wb_slave(self.mem_regions["i2s_rx"].origin, self.i2s_rx.bus, i2s_mem_size)
+            # i2s tx
+            self.submodules.i2s_tx = S7I2S(
+                pads=self.platform.request("i2s_tx"),
+                fifo_depth = i2s_fifo_depth,
+                sample_width=24,
+                frame_format=I2S_FORMAT.I2S_STANDARD,
+                master=True,
+                concatenate_channels=False
+            )
+            self.add_memory_region("i2s_tx", self.mem_map["i2s_tx"], i2s_mem_size, type="linker")
+            self.add_wb_slave(self.mem_regions["i2s_tx"].origin, self.i2s_tx.bus, i2s_mem_size)
+
+            #FIXME: add cd_mmcm_clkout
+            #self.comb += self.platform.request("i2s_rx_mclk").eq(self.cd_mmcm_clkout["i2s_rx"].clk)
+            #self.comb += self.platform.request("i2s_tx_mclk").eq(self.cd_mmcm_clkout["i2s_tx"].clk)
+
+            self.add_constant("I2S_RX_MEMADDR", self.mem_map["i2s_rx"]);
+            self.add_constant("I2S_TX_MEMADDR", self.mem_map["i2s_tx"]);
+            self.add_constant("I2S_FIFO_DEPTH", i2s_fifo_depth);
+
+    def add_mmcm(self, freqs={}):
+            self.cd_mmcm_clkout = {} 
+            self.submodules.mmcm = S7MMCM(speedgrade=-1)
+            self.mmcm.register_clkin(self.crg.cd_sys.clk, self.clk_freq)
+
+            self.add_constant("clkout_def_freq", int(self.clk_freq))
+            self.add_constant("clkout_def_phase", int(0))
+            self.add_constant("clkout_def_duty_num", int(50))
+            self.add_constant("clkout_def_duty_den", int(100))
+            self.add_constant("mmcm_lock_timeout", int(10))
+            self.add_constant("mmcm_drdy_timeout", int(10))
+
+            for n, key in enumerate(freqs):
+                self.cd_mmcm_clkout.update({key : ClockDomain(name="cd_mmcm_clkout{}".format(n))})
+                self.mmcm.create_clkout(self.cd_mmcm_clkout[key], freqs[key])
+
+            for n in range(len(freqs), 7):
+                key = "clk_{}".format(n)
+                self.cd_mmcm_clkout.update({key : ClockDomain(name="cd_mmcm_clkout{}".format(n))})
+                self.mmcm.create_clkout(self.cd_mmcm_clkout[key], self.clk_freq)
+
+            self.mmcm.expose_drp()
+            self.add_csr("mmcm")
+
+            self.comb += self.mmcm.reset.eq(self.mmcm.drp_reset.re)
 
 # Build --------------------------------------------------------------------------------------------
 # (DVI=False, 640x480@60Hz) ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6     --cpu-type=vexriscv --cpu-variant=full --build
