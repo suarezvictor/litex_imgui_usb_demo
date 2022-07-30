@@ -4,13 +4,13 @@
 #include <i2s/litex_i2s.h>
 #include "cordic.h"
 
-uint16_t audio_volume = 0xFFFF/2;
-
+extern uint16_t audio_volume;
+extern uint16_t audio_param[];
 
 int FAST_CODE synth(unsigned count)
 {
 	static int64_t wt = 0;
-    const int f = 1000; //Hz
+    const int f = audio_param[0]; //Hz
 	const int bits = 24; //i2s_tx_get_bits();
 	static int cycle_count = 0;
  	for(size_t i = 0; i < count; i+=2)

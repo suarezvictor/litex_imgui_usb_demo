@@ -1,6 +1,7 @@
 #include "imgui_custom.h"
-#include "implot.h"
 
+#if 0
+#include "implot.h"
 #include "implot.cpp"
 #include "implot_items.cpp"
 #include "implot_demo.cpp"
@@ -31,7 +32,12 @@ void Demo_Plot()
 
   ImGui::End();
 }
+#endif
 
+extern "C" {
+uint16_t audio_volume=0xFFFF;
+uint16_t audio_param[]={880};
+}
 
 ImColor do_test_ui()
 {
@@ -40,7 +46,7 @@ ImColor do_test_ui()
   {
     init = false;
     ImGui::CreateContext();
-    ImPlot::CreateContext();  
+    //ImPlot::CreateContext();  
   }
   
   ImGuiIO& io = ImGui::GetIO();
@@ -65,6 +71,18 @@ ImColor do_test_ui()
   ImGui::SliderInt("G", &color_g, 0, 255);
   ImGui::SliderInt("B", &color_b, 0, 255);
   ImGui::End();
+#endif
+
+#if 1
+  ImGui::SetNextWindowPos(ImVec2(100, 210));        
+  ImGui::SetNextWindowSize(ImVec2(250, 80));
+  ImGui::Begin("Audio");
+  int vol=100*audio_volume/0xFFFF, freq=audio_param[0];
+  ImGui::SliderInt("Volume", &vol, 0, 100);
+  ImGui::SliderInt("Frequency", &freq, 440, 440*4);
+  ImGui::End();
+  audio_volume = (0xFFFF*vol+50)/100; //linear, should be in dB
+  audio_param[0]=freq;
 #endif
 
 #if 1
