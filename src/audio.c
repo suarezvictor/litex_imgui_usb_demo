@@ -2,15 +2,9 @@
 
 #include <litex.h>
 #include <i2s/litex_i2s.h>
+#include "cordic.h"
 
 uint16_t audio_volume = 0xFFFF/2;
-
-#define CORDIC_HALF_PI 0x40000000u
-#define CORDIC_SHIFT 30
-static inline int64_t cordic_sin(x)
-{
-  return x;
-}
 
 
 int FAST_CODE synth(unsigned count)
