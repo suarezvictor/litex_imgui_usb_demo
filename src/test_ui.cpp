@@ -36,7 +36,7 @@ void Demo_Plot()
 
 extern "C" {
 uint16_t audio_volume=0xFFFF;
-uint16_t audio_param[]={880};
+uint16_t audio_param[]={880}; //sets frequency of sinusoid generation demo
 }
 
 ImColor do_test_ui()
@@ -74,12 +74,12 @@ ImColor do_test_ui()
 #endif
 
 #if 1
-  ImGui::SetNextWindowPos(ImVec2(100, 210));        
-  ImGui::SetNextWindowSize(ImVec2(250, 80));
-  ImGui::Begin("Audio");
+  ImGui::SetNextWindowPos(ImVec2(310, 210));        
+  ImGui::SetNextWindowSize(ImVec2(300, 60));
+  ImGui::Begin("Music");
   int vol=100*audio_volume/0xFFFF, freq=audio_param[0];
-  ImGui::SliderInt("Volume", &vol, 0, 100);
-  ImGui::SliderInt("Frequency", &freq, 440, 440*4);
+  ImGui::SliderInt("Main volume", &vol, 0, 100);
+  //ImGui::SliderInt("Frequency", &freq, 440, 440*4);
   ImGui::End();
   audio_volume = (0xFFFF*vol+50)/100; //linear, should be in dB
   audio_param[0]=freq;
