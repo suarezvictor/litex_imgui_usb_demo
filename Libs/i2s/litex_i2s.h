@@ -15,7 +15,7 @@ static inline void i2s_tx_enqueue_sample(uint32_t sample) { *(volatile uint32_t*
 static inline int i2s_tx_full(void) { return i2s_tx_tx_stat_full_read(); }
 static inline int i2s_tx_almostfull(void) { return i2s_tx_tx_stat_almostfull_read(); }
 static inline void i2s_tx_clear(void) { i2s_tx_tx_ctl_reset_write(1); }
-static inline unsigned i2s_tx_frequency(void) { return i2s_tx_tx_conf_lrck_freq_read(); }
+static inline unsigned i2s_tx_frequency(void) { return i2s_tx_tx_conf_lrck_freq_read()*I2S_CLK_RATIO; }
 static inline unsigned i2s_tx_get_default_channels(void) { return 2; } 
 static inline unsigned i2s_tx_get_bits(void) { return i2s_tx_tx_conf_sample_width_read(); } 
 static inline int i2s_is_playing(void) { return i2s_tx_tx_ctl_enable_read(); } 

@@ -283,6 +283,7 @@ class BaseSoC(SoCCore):
             ext = [("gpio", 0, Pins(" ".join(pa + pd)), IOStandard("LVCMOS33"))] #first 8 bits are dummy since required by software-only USB host
             platform.add_extension(ext)
             self.submodules.gpio = GPIOTristate(platform.request("gpio"))
+            self.add_constant("LITEX_SOFTUSB_HOST");
 
         """
         if with_spi:
@@ -364,11 +365,15 @@ class BaseSoC(SoCCore):
             # I2S --------------------------------------------------------------------------------------
             i2s_mem_size = 0x40000
             i2s_fifo_depth = 256
-            # i2s rx
+            i2s_lrck_ref_freq = 100e6 #FIXME: the logic below is for avoiding this paramter to be > 100MHz
+            i2s_lrck_freq = int(44100*i2s_lrck_ref_freq/self.clk_freq)
+	            # i2s rx
             self.submodules.i2s_rx = S7I2S(
                 pads=self.platform.request("i2s_rx"),
                 fifo_depth = i2s_fifo_depth,
                 sample_width=24,
+                lrck_ref_freq=i2s_lrck_ref_freq,
+                lrck_freq=i2s_lrck_freq,
                 frame_format=I2S_FORMAT.I2S_STANDARD,
                 concatenate_channels=False
             )
@@ -379,6 +384,8 @@ class BaseSoC(SoCCore):
                 pads=self.platform.request("i2s_tx"),
                 fifo_depth = i2s_fifo_depth,
                 sample_width=24,
+                lrck_ref_freq=i2s_lrck_ref_freq,
+                lrck_freq=i2s_lrck_freq,
                 frame_format=I2S_FORMAT.I2S_STANDARD,
                 master=True,
                 concatenate_channels=False
@@ -392,6 +399,7 @@ class BaseSoC(SoCCore):
             self.add_constant("I2S_RX_MEMADDR", self.mem_map["i2s_rx"]);
             self.add_constant("I2S_TX_MEMADDR", self.mem_map["i2s_tx"]);
             self.add_constant("I2S_FIFO_DEPTH", i2s_fifo_depth);
+            self.add_constant("I2S_CLK_RATIO", self.clk_freq/i2s_lrck_ref_freq); #FIXME: this is as cause of issues with clocks > 100MHz
 
     def add_mmcm(self, freqs={}):
             self.cd_mmcm_clkout = {} 

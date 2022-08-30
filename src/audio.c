@@ -122,7 +122,7 @@ void audio_init(void)
     printf("Audio frequency: %d, channels %d, bits %d\n", freq, channels, bits);
 
 #ifdef MOD_PLAYER
-    mod_load(freq*2); //FIXME: doubling frequency correct issues with hardware samplerate
+    mod_load(freq);
 #endif
 
     i2s_tx_start();

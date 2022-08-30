@@ -58,16 +58,28 @@ void litex_timer_setup(uint32_t usec, timer_isr_t handler)
    */
 }
 
+void emu_main(void);
+void mod_main(void);
+void start_micropython(int argc, char **argv);
+
 int main(int argc, char **argv) {
     irq_setmask(0);
     irq_setie(1);
 
     uart_init();
+#if 1
+    //emu_main();
+    //mod_main();
+	printf("Micropython launch...\n");
+	void start_micropython(int argc, char **argv);
+	start_micropython(1, argv);
+    }
+#else    
     setup();
 
     for(;;)
       loop();
-
+#endif
     irq_setie(0);
     irq_setmask(~0);
 

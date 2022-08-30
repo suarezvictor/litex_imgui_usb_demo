@@ -21,7 +21,8 @@ I2S_OBJECTS=../Libs/i2s/litex_i2s.o
 all: usb_main.elf
 
 #lto flag added to allow sources with mixed -flto or -fno-lto (link time) optimizations settings
-%.elf: %.o crt0.o sbrk.o usb_main.o isr.o usb.o audio.o printf.o $(FB_DIR)/lite_fb.o $(IMGUI_OBJECTS) $(I2S_OBJECTS) $(USB_OBJECTS) linker.ld regions.ld
+%.elf: %.o crt0.o sbrk.o usb_main.o isr.o usb.o audio.o printf.o $(FB_DIR)/lite_fb.o $(IMGUI_OBJECTS) $(I2S_OBJECTS) $(USB_OBJECTS) \
+	linker.ld regions.ld $(MICROPYTHON_PORT_DIR)/build/libmicropython.a
 	$(CC)  $< ./crt0.o sbrk.o $(USB_OBJECTS) isr.o usb.o audio.o printf.o \
 	     $(FB_DIR)/lite_fb.o $(IMGUI_OBJECTS) $(I2S_OBJECTS) $(LDFLAGS) \
 		-T linker.ld \
@@ -29,7 +30,7 @@ all: usb_main.elf
 		-N -o $@ \
 		$(PACKAGES:%=-L$(BUILD_DIR)/software/%) \
 		-flto \
-		-L. $(LIBS:lib%=-l%) -L$(RVFPLIB)/build/lib -lrvfp
+		-L. $(LIBS:lib%=-l%) -L$(RVFPLIB)/build/lib -lrvfp -L$(MICROPYTHON_PORT_DIR)/build -lmicropython
 	chmod -x $@
 	$(OBJCOPY) -O binary $@ $@.bin
 
