@@ -5,7 +5,7 @@ IMGUI_DIR=../Libs/imgui
 TINYUSB_SCR_DIR=../Libs/tinyusb
 LITEX_SDK_DIR?=../Libs/litex_sdk
 RVFPLIB?=../../RVfplib/
-
+MICROPYTHON_PORT_DIR?=/media/vsuarez/elocaldata/SCRATCH/micropython-private/ports/litex
 include makefile.inc
 
 INC += -I$(USBHOST_DIR) -I$(FB_DIR) -I$(TINYUSB_SCR_DIR) -I$(LITEX_SDK_DIR)

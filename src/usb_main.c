@@ -71,9 +71,7 @@ int main(int argc, char **argv) {
     //emu_main();
     //mod_main();
 	printf("Micropython launch...\n");
-	void start_micropython(int argc, char **argv);
-	start_micropython(1, argv);
-    }
+	start_micropython(argc, argv);
 #else    
     setup();
 
