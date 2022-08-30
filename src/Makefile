@@ -14,7 +14,7 @@ CCDEFS = -DIMGUI_USE_BGRA_PACKED_COLOR
 CXXFLAGS += $(CCDEFS) $(INC) -O2 -march=rv32im -mabi=ilp32
 CFLAGS += $(CCDEFS) $(INC) -O2 -Wno-missing-prototypes -march=rv32im -mabi=ilp32
 
-IMGUI_OBJECTS=imgui.o imgui_demo.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui_sw.o
+IMGUI_OBJECTS=imgui.o imgui_demo.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui_sw.o $(MICROPYTHON_PORT_DIR)/dpg_lite/dpg_lite.o
 USB_OBJECTS=$(USBHOST_DIR)/usb_host.o $(USBHOST_DIR)/usb_host_hid.o $(TINYUSB_SCR_DIR)/common/tusb_fifo.o
 I2S_OBJECTS=../Libs/i2s/litex_i2s.o
 
