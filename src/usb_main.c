@@ -67,11 +67,14 @@ int main(int argc, char **argv) {
     irq_setie(1);
 
     uart_init();
-#if 1
+#if 0
     //emu_main();
     //mod_main();
 	printf("Micropython launch...\n");
-	start_micropython(argc, argv);
+	{
+		char *v[]={""}; //custom parameters since the one at mains contains garbage
+		start_micropython(1, v);
+	}
 #else    
     setup();
 

@@ -189,7 +189,7 @@ int usbh_on_hidevent_mouse(int dx, int dy, int buttons, int wheel)
   if(io.MousePos.x > FB_WIDTH-1) io.MousePos.x = FB_WIDTH-1;
   io.MousePos.y += dy;
   if(io.MousePos.y < 0) io.MousePos.y = 0;
-  if(io.MousePos.y > FB_WIDTH-1) io.MousePos.y = FB_HEIGHT-1;
+  if(io.MousePos.y > FB_HEIGHT-1) io.MousePos.y = FB_HEIGHT-1;
 
   io.MouseWheel = wheel; //wheel delta
   for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++)

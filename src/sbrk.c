@@ -4,7 +4,7 @@
 
 void *sbrk(ptrdiff_t incr);
 void *sbrk(ptrdiff_t incr) {
-   
+#warning: THIS IS A BUG: the framebuffer normally sits in between the SDRAM   
            extern unsigned char _end[];   // Defined by linker
            static unsigned long heap_end = 0;
    
