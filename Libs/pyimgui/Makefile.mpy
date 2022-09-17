@@ -1,0 +1,189 @@
+# This file is Copyright (c) 2017-2021 Fupy/LiteX-MicroPython Developers
+# This file is Copyright (c) 2021-2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+# License: BSD-2-Clause
+
+EXT_LIBS=/media/vsuarez/elocaldata/SCRATCH/litex_imgui_usb_demo/Libs
+
+# LearnFPGA libs and demos: https://github.com/BrunoLevy/learn-fpga/tree/master/LiteX/software
+# learn-fpga may be a symolic link to a learn-fpga repo
+LEARNFPGA_LITEX_SOFTWARE ?= learn-fpga/LiteX/software
+
+# Check LiteX's BUILD_DIRECTORY definition.
+
+BUILD_DIRECTORY ?= gateware/build/digilent_arty
+ifeq ($(wildcard $(BUILD_DIRECTORY)/software/include/generated/variables.mak),)
+define ERROR_MSG
+
+The LiteX port of MicroPython relies on software files generated
+during the LiteX build. Please specify your build directory, ex:
+$ export BUILD_DIRECTORY=build/digilent_arty
+
+endef
+$(error $(ERROR_MSG))
+endif
+
+# Import LiteX's variables.mak
+include $(BUILD_DIRECTORY)/software/include/generated/variables.mak
+LIBLITESDCARD_DIRECTORY = liblitesdcard
+
+# Include the core environment definitions; this will set $(TOP).
+include ../../py/mkenv.mk
+
+#set misc variables (used by py.mk)
+################################################################################
+#TODO: REENABLE after fixing shared SD access micropython & LiteOS
+################################################################################
+
+MICROPY_VFS_FAT = $(shell egrep "(CSR_SDCORE_BASE|CSR_SPISDCARD_BASE)" ${BUILD_DIRECTORY}/software/include/generated/csr.h | wc -l)
+#$(info $$MICROPY_VFS_FAT is: ${MICROPY_VFS_FAT})
+
+#TODO:it's unclear why py.mk (that has this logic) doesn't get called
+################################################################################
+# VFS FAT FS
+
+OOFATFS_DIR = lib/oofatfs
+
+# this sets the config file for FatFs
+CFLAGS_MOD += -DFFCONF_H=\"$(OOFATFS_DIR)/ffconf.h\"
+
+ifeq ($(MICROPY_VFS_FAT),1)
+CFLAGS_MOD += -DMICROPY_VFS_FAT=1
+SRC_MOD += $(addprefix $(OOFATFS_DIR)/,\
+	ff.c \
+	ffunicode.c \
+	)
+endif
+CFLAGS += $(CFLAGS_MOD)
+CXXFLAGS += -fno-threadsafe-statics -fno-exceptions -fno-rtti -fno-builtin-malloc -std=c++11 -fno-use-cxa-atexit $(CPUFLAGS) 
+#CXXFLAGS += -DLEARNFPGA_LITEX
+
+# Include py core make definitions
+include $(TOP)/py/py.mk
+
+# Set Cross-Compiler.
+
+CROSS_COMPILE ?= $(TRIPLE)-
+
+# Set ASFLAGS / CFLAGS.
+
+ASFLAGS += -I$(BUILD_DIRECTORY)/software/include # For crt0.S.
+
+CFLAGS += $(CPUFLAGS)
+#CFLAGS += $(INC) -Wall -Werror -std=gnu11 -ggdb $(COPT)
+CFLAGS += $(INC) -Wall -Wno-error -std=gnu11 -ggdb $(COPT)
+CFLAGS += -Og -Wdouble-promotion
+CXXFLAGS += -Og -Wdouble-promotion -DIMGUI_USE_BGRA_PACKED_COLOR
+
+# Set Include directories.
+INC += -I. -I./third-party -I./liblitesdk
+INC += -I$(BUILD)
+INC += -I$(TOP)
+INC += -I$(BUILD_DIRECTORY)/software/include
+INC += -I$(SOC_DIRECTORY)/software/include
+INC += -I$(CPU_DIRECTORY)
+INC += -I$(LEARNFPGA_LITEX_SOFTWARE)/Libs
+INC += -Iimgui  -I$(LEARNFPGA_LITEX_SOFTWARE)/Libs
+CXXFLAGS += $(INC)
+
+# Set LDFLAGS.
+LDFLAGS += -nostartfiles -T linker.ld -Wl,-Map=$@.map -Wl,--cref
+LDFLAGS += -L$(BUILDINC_DIRECTORY)
+LDFLAGS += $(filter -march=% -mabi=%, $(CPUFLAGS)) # CPU specific.
+
+# Set Libraries.
+LIBS = -Wl,-lc -Wl,-lm
+
+# Set Sources.
+SRC_C = \
+	main.c \
+	mpmain.c \
+	isr.c \
+	./third-party/printf.c \
+	modmachine.c \
+	moduos.c \
+	modutime.c \
+	modlitex.c \
+	litex_led.c \
+	litex_dma.c \
+	litex_video.c \
+	litex_usbhmi.c \
+	$(EXT_LIBS)/pyimgui/modpyimgui.c \
+	machine_hw_spi.c \
+	machine_timer.c \
+	machine_pwm.c \
+	machine_sdcard.c \
+	machine_pin.c \
+	machine_i2s.c \
+	lib/utils/sys_stdio_mphal.c \
+	lib/utils/stdout_helpers.c \
+	lib/utils/interrupt_char.c \
+	lib/utils/pyexec.c \
+	lib/timeutils/timeutils.c \
+	lib/mp-readline/readline.c
+
+SRC_CPP = \
+	cppglue.cpp \
+	$(EXT_LIBS)/pyimgui/imgui_glue.cpp \
+	$(EXT_LIBS)/pyimgui/cython_imgui_core.cpp \
+
+#lib sources with no need of QSTR extraction
+SRC_LITEX = \
+	$(LIBBASE_DIRECTORY)/system.c \
+	$(LIBBASE_DIRECTORY)/uart.c \
+	$(LIBLITESDCARD_DIRECTORY)/spisdcard.c \
+	$(LIBLITESDCARD_DIRECTORY)/sdcard.c \
+	$(LEARNFPGA_LITEX_SOFTWARE)/Libs/lite_fb.c \
+	../third-party/usbhost/usb_host.c \
+	../third-party/usbhost/usb_host_hid.c \
+	../third-party/common/tusb_fifo.c \
+
+SRC_C += $(SRC_MOD)
+SRC_IMGUI = \
+    imgui/imgui.cpp \
+    imgui/imgui_sw.cpp \
+    imgui/imgui_draw.cpp \
+    imgui/imgui_tables.cpp \
+    imgui/imgui_widgets.cpp \
+    imgui/imgui_demo.cpp \
+
+DRIVERS_SRC_C = $(addprefix drivers/,\
+	bus/softspi.c \
+)
+
+EXTMOD_SRC_C = $(addprefix extmod/,\
+	machine_spi.c \
+	machine_i2c.c \
+)
+
+CRT0_S ?= $(CPU_DIRECTORY)/crt0.S
+CRT0_O = $(BUILD)/software/libbase/crt0.o
+
+OBJ =  $(CRT0_O) $(addprefix $(BUILD)/, $(SRC_S:.S=.o)) $(PY_O)
+OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(DRIVERS_SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(EXTMOD_SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(SRC_LITEX:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(SRC_CPP:.cpp=.o))
+OBJ += $(addprefix $(BUILD)/, $(SRC_IMGUI:.cpp=.o))
+
+#$(info $$OBJ is: ${OBJ})
+
+
+all: $(BUILD)/firmware.bin
+
+# List of sources for qstr extraction
+SRC_QSTR += $(SRC_C) $(SRC_LIB)
+
+# CRT0 override for normal assembler rule.
+$(CRT0_O): $(CRT0_S)
+	$(CC) -c $(ASFLAGS) $(CFLAGS) $(CRT0FLAGS) -o $@ $<
+
+$(BUILD)/firmware.elf: $(OBJ)
+	$(ECHO) "LINK $@"
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(Q)$(SIZE) $@
+
+$(BUILD)/firmware.bin: $(BUILD)/firmware.elf
+	$(Q)$(OBJCOPY) -O binary $^ $(BUILD)/firmware.bin
+
+include ../../py/mkrules.mk
