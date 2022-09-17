@@ -24,6 +24,7 @@ def process_hmi_input():
 
 s = "a string"
 value = 88
+checked = True
 while True:
   #get input & setup frame
   process_hmi_input()
@@ -34,6 +35,7 @@ while True:
   imgui.text("Hello from ImGui + micropython!")
   changed, s = imgui.input_text("input", s, 20)
   changed, value = imgui.slider_int("slider", value, 0, 100, "%d")
+  _, checked = imgui.checkbox("Check", checked)
   imgui.end()
 
   #render frame
