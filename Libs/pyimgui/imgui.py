@@ -2,7 +2,7 @@
 # Copyright (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 
 import litex
-import dpg_lite as imgui
+import imgui_lite as imgui
 
 hmi = litex.USB_HMI(13,12,14,15) #D+/D- pin pairs
 hmi.start()

@@ -1,18 +1,4 @@
 
-static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
-   int is_true = x == Py_True;
-   if (is_true | (x == Py_False) | (x == Py_None)) return is_true;
-   else return PyObject_IsTrue(x);
-}
-
-static int __pyx_memviewslice_is_contig(const __Pyx_memviewslice mvs, char order, int ndim);
-static __Pyx_memviewslice __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
-                                 const char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag,
-                                 int dtype_is_object);
-static int __pyx_slices_overlap(__Pyx_memviewslice *slice1,
-                                __Pyx_memviewslice *slice2,
-                                int ndim, size_t itemsize);
 
 static PyObject *__pyx_kp_s_3f;
 static PyObject *__pyx_kp_s_6f;
@@ -785,9 +771,8 @@ static PyObject *__pyx_n_s_xrange;
 static PyObject *__pyx_n_s_y;
 static PyObject *__pyx_n_s_z;
 static PyObject *__pyx_n_s_zip_longest;
-
 /* ObjectToMemviewSlice.proto */
-static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_ds_float__const__(PyObject *, int writable_flag);
+/*static CYTHON_INLINE*/ __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_ds_float__const__(PyObject *, int writable_flag);
 
 
 /*--- Type declarations ---*/
@@ -2526,7 +2511,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiCond_(ImGuiCond_ value);
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiStyleVar_(ImGuiStyleVar_ value);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiKey_(ImGuiKey_ value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiKey_(ImGuiKey_ value);
 
 /* CIntToPy.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiWindowFlags_(ImGuiWindowFlags_ value);
@@ -2598,7 +2583,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiBackendFlags_(ImGuiBackendF
 //static CYTHON_INLINE ImGuiID __Pyx_PyInt_As_ImGuiID(PyObject *);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiWindowFlags(ImGuiWindowFlags value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiWindowFlags(ImGuiWindowFlags value);
 
 /* CIntFromPy.proto */
 //static CYTHON_INLINE ImGuiCond __Pyx_PyInt_As_ImGuiCond(PyObject *);
@@ -2637,28 +2622,28 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiWindowFlags(ImGuiWindowFlag
 //static CYTHON_INLINE size_t __Pyx_PyInt_As_size_t(PyObject *);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiCol(ImGuiCol value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiCol(ImGuiCol value);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiConfigFlags(ImGuiConfigFlags value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiConfigFlags(ImGuiConfigFlags value);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiBackendFlags(ImGuiBackendFlags value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiBackendFlags(ImGuiBackendFlags value);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiID(ImGuiID value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiID(ImGuiID value);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiDir(ImGuiDir value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiDir(ImGuiDir value);
 
 /* CIntFromPy.proto */
-static CYTHON_INLINE ImGuiColorEditFlags __Pyx_PyInt_As_ImGuiColorEditFlags(PyObject *);
+/*static CYTHON_INLINE*/ ImGuiColorEditFlags __Pyx_PyInt_As_ImGuiColorEditFlags(PyObject *);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiMouseCursor(ImGuiMouseCursor value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiMouseCursor(ImGuiMouseCursor value);
 
 /* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImGuiStyleVar(ImGuiStyleVar value);
+/*static CYTHON_INLINE*/ PyObject* __Pyx_PyInt_From_ImGuiStyleVar(ImGuiStyleVar value);
 
 /* CIntToPy.proto */
 //static CYTHON_INLINE PyObject* __Pyx_PyInt_From_ImU32(ImU32 value);

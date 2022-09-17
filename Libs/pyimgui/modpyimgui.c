@@ -61,8 +61,8 @@ MP_DEFINE_CONST_FUN_OBJ_3(on_keyboard_obj, on_keyboard);
 #define CY_IMPL_1(imp, f) MP_DECLARE_CONST_FUN_OBJ_1(f##_obj);
 #include  "pyimgui_def.inl"
 
-STATIC const mp_rom_map_elem_t dpg_lite_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_dpg_lite) },
+STATIC const mp_rom_map_elem_t imgui_lite_module_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_imgui_lite) },
     { MP_ROM_QSTR(MP_QSTR_create_context), MP_ROM_PTR(&create_context_obj) },
     { MP_ROM_QSTR(MP_QSTR_new_frame), MP_ROM_PTR(&new_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_render), MP_ROM_PTR(&render_obj) },
@@ -79,9 +79,9 @@ STATIC const mp_rom_map_elem_t dpg_lite_module_globals_table[] = {
 #include  "pyimgui_def.inl"
 };
 
-STATIC MP_DEFINE_CONST_DICT(dpg_lite_module_globals, dpg_lite_module_globals_table);
+STATIC MP_DEFINE_CONST_DICT(imgui_lite_module_globals, imgui_lite_module_globals_table);
 
-const mp_obj_module_t mp_module_dpg_lite = {
+const mp_obj_module_t mp_module_imgui_lite = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t*)&dpg_lite_module_globals,
+    .globals = (mp_obj_dict_t*)&imgui_lite_module_globals,
 };
