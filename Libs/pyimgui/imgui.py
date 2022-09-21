@@ -19,7 +19,7 @@ def process_hmi_input():
         return
     if evt == hmi.HID_PROTO_KEYBOARD:
       modifiers, key, pressed, inputchar = hmi.key_modifiers(), hmi.key(), hmi.key_pressed(), hmi.key_char()
-      if imgui.on_keyboard(modifiers, key, pressed):
+      if imgui.on_keyboard(modifiers, key, pressed, inputchar):
         return
 
 s = "a string"

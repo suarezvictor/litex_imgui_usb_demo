@@ -3,6 +3,7 @@
 
 #include "py/obj.h"
 #include "py/objstr.h"
+#include "py/runtime.h"
 
 #define EXPERIMENTAL_CYTHON
 //TODO Cython:https://github.com/cython/cython/blob/master/Cython/Compiler/Code.py#L1787
@@ -50,11 +51,22 @@ STATIC mp_obj_t on_mouse(mp_obj_t dx, mp_obj_t dy, mp_obj_t buttons/*, mp_obj_t 
 }
 MP_DEFINE_CONST_FUN_OBJ_3(on_mouse_obj, on_mouse);
 
-STATIC mp_obj_t on_keyboard(mp_obj_t modifiers, mp_obj_t key, mp_obj_t pressed/*, mp_obj_t inputchar*/) {
-	int r = dpg_hidevent_keyboard(mp_obj_get_int(modifiers), mp_obj_get_int(key), mp_obj_get_int(pressed), 0);
+STATIC mp_obj_t on_keyboard(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_modifiers, ARG_key, ARG_pressed, ARG_inputchar };
+    static const mp_arg_t allowed_args[] = { //bool u_bool;  mp_int_t u_int; mp_obj_t u_obj; mp_rom_obj_t u_rom_obj;
+        { MP_QSTR_modifiers,	MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_key,			MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_pressed,		MP_ARG_REQUIRED | MP_ARG_BOOL, {.u_bool = false} },
+        { MP_QSTR_inputchar,	MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} }, //MP_ARG_KW_ONLY
+    };
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+    //printf("modifiers %d, key %d, pressed %d, inputchar %c\n",
+    //	args[ARG_modifiers].u_int, args[ARG_key].u_int, args[ARG_pressed].u_bool, args[ARG_inputchar].u_int);
+	int r = dpg_hidevent_keyboard(args[ARG_modifiers].u_int, args[ARG_key].u_int, args[ARG_pressed].u_bool, args[ARG_inputchar].u_int);
     return MP_OBJ_NEW_SMALL_INT(r);
 }
-MP_DEFINE_CONST_FUN_OBJ_3(on_keyboard_obj, on_keyboard);
+MP_DEFINE_CONST_FUN_OBJ_KW(on_keyboard_obj, 4, on_keyboard);
 
 #define CY_IMPL_KW(imp, f) MP_DECLARE_CONST_FUN_OBJ_KW(f##_obj);
 #define CY_IMPL_0(imp, f) MP_DECLARE_CONST_FUN_OBJ_0(f##_obj);
