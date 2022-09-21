@@ -14,12 +14,10 @@ def process_hmi_input():
     if evt == hmi.HID_PROTO_NONE:
       return
     if evt == hmi.HID_PROTO_MOUSE:
-      dx, dy, buttons, wheel = hmi.dx(), hmi.dy(), hmi.buttons(), hmi.wheel()
-      if imgui.on_mouse(dx, dy, buttons):
+      if imgui.on_mouse(hmi.dx(), hmi.dy(), hmi.buttons(), hmi.wheel()):
         return
     if evt == hmi.HID_PROTO_KEYBOARD:
-      modifiers, key, pressed, inputchar = hmi.key_modifiers(), hmi.key(), hmi.key_pressed(), hmi.key_char()
-      if imgui.on_keyboard(modifiers, key, pressed, inputchar):
+      if imgui.on_keyboard(hmi.key_modifiers(), hmi.key(), hmi.key_pressed(), hmi.key_char()):
         return
 
 s = "a string"
