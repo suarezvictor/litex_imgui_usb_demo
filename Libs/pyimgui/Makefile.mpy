@@ -75,14 +75,14 @@ CFLAGS += -Og -Wdouble-promotion
 CXXFLAGS += -Og -Wdouble-promotion -DIMGUI_USE_BGRA_PACKED_COLOR
 
 # Set Include directories.
-INC += -I. -I./third-party -I./liblitesdk
+INC += -I. -Ithird-party -I./liblitesdk
 INC += -I$(BUILD)
 INC += -I$(TOP)
 INC += -I$(BUILD_DIRECTORY)/software/include
 INC += -I$(SOC_DIRECTORY)/software/include
 INC += -I$(CPU_DIRECTORY)
 INC += -I$(LEARNFPGA_LITEX_SOFTWARE)/Libs
-INC += -Iimgui  -I$(LEARNFPGA_LITEX_SOFTWARE)/Libs
+INC += -Iimgui
 CXXFLAGS += $(INC)
 
 # Set LDFLAGS.
@@ -98,7 +98,7 @@ SRC_C = \
 	main.c \
 	mpmain.c \
 	isr.c \
-	./third-party/printf.c \
+	third-party/printf.c \
 	modmachine.c \
 	moduos.c \
 	modutime.c \
@@ -133,9 +133,9 @@ SRC_LITEX = \
 	$(LIBLITESDCARD_DIRECTORY)/spisdcard.c \
 	$(LIBLITESDCARD_DIRECTORY)/sdcard.c \
 	$(LEARNFPGA_LITEX_SOFTWARE)/Libs/lite_fb.c \
-	../third-party/usbhost/usb_host.c \
-	../third-party/usbhost/usb_host_hid.c \
-	../third-party/common/tusb_fifo.c \
+	third-party/usbhost/usb_host.c \
+	third-party/usbhost/usb_host_hid.c \
+	third-party/common/tusb_fifo.c \
 
 SRC_C += $(SRC_MOD)
 SRC_IMGUI = \
