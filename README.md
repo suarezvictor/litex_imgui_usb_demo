@@ -20,7 +20,7 @@ This is an implementation of a 100% software USB host stack for a LiteX SoC, and
 
 
 ## Software dependencies
-* LiteX and associated tools (compilers, synthesis tools, etc.)
+* LiteX and associated tools (compilers, synthesis tools, etc.) **Use my fork for graphical Verilator simulation** https://github.com/suarezvictor/litex
 * Risc-V soft float emulation library https://github.com/pulp-platform/RVfplib
 * Other libraries used are already put into the Libs folder
 
