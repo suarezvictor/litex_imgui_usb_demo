@@ -3,6 +3,7 @@
 #include <litex.h>
 #include <i2s/litex_i2s.h>
 
+#if I2S_ENABLED
 #define MOD_PLAYER //comment for simple sinusouid test
 
 extern uint16_t audio_volume;
@@ -128,3 +129,4 @@ void audio_init(void)
     i2s_tx_start();
 }
 
+#endif //I2S_ENABLED

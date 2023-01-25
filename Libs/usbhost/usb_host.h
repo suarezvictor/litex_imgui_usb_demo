@@ -107,6 +107,10 @@ typedef xQueueHandle hal_queue_handle_t;
 
 #define GPIO_MODE_OUTPUT true
 #define GPIO_MODE_INPUT false
+
+#ifdef USBHOST_GPIO
+#define USBHOST_ENABLED
+
 #define USBHOST_GPIO litegpio0
 #define hal_gpio_set_direction(pin, output) if(output) litegpio_mode_output(USBHOST_GPIO, pin); else litegpio_mode_input(USBHOST_GPIO, pin)
 #define hal_gpio_set_level(pin, level) litegpio_write(USBHOST_GPIO, pin, level)
@@ -125,6 +129,10 @@ typedef xQueueHandle hal_queue_handle_t;
 #define SE_J USBHOST_GPIO->OUT = 1 << DP_PIN //clear / set
 #define SE_0 USBHOST_GPIO->OUT = 0 //clear / clear
 #define READ_BOTH_PINS (((USBHOST_GPIO->IN & RD_MASK)<<8)>>RD_SHIFT)
+#else
+#warning USB Host needs GPIO
+#endif
+
 
 static inline uint32_t cpu_hal_get_cycle_count(void) { timer0_uptime_latch_write(1); return csr_read_simple(CSR_TIMER0_UPTIME_CYCLES_ADDR+4); }
 static inline uint64_t cpu_hal_get_cycle_count64(void) { timer0_uptime_latch_write(1); return timer0_uptime_cycles_read(); }

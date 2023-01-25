@@ -8,6 +8,9 @@
 #include <string.h>
 
 #include "usb_host.h"
+
+#ifdef USBHOST_GPIO
+
 #ifdef ESP32
 #include "driver/gpio.h"
 #include "sdkconfig.h"
@@ -1918,4 +1921,4 @@ void set_print_cb( printcb_t cb ) { printDataCB = cb; }
 hal_queue_handle_t usb_msg_queue;
 
 #pragma GCC diagnostic pop
-
+#endif //USBHOST_GPIO

@@ -3,7 +3,7 @@ ENTRY(_start)
 
 __DYNAMIC = 0;
 
-INCLUDE regions.ld
+INCLUDE generated/regions.ld
 
 SECTIONS
 {

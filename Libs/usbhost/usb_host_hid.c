@@ -1,5 +1,7 @@
 //HID functions
 #include "usb_host.h"
+
+#ifdef USBHOST_ENABLED
 #include "usb_keys.h"
 
 //mouse acceleration (seems required for high FPS)
@@ -186,4 +188,4 @@ hid_protocol_t usbh_hid_process(hid_event *evt, int prevupdated, float dt)
   return proto;
 }
 
-
+#endif //USBHOST_ENABLED

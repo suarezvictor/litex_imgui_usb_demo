@@ -6,6 +6,9 @@
 
 #include <generated/csr.h>
 
+#ifdef I2S_TX_MEMADDR
+#define I2S_ENABLED
+
 void i2s_tx_start(void);
 void i2s_tx_stop(void);
 
@@ -24,5 +27,6 @@ extern volatile unsigned i2s_tx_samples_count;
 static inline unsigned i2s_tx_played_count(void) { return i2s_tx_samples_count; }
 
 int __attribute__((weak)) i2s_audio_send_cb(unsigned count);
+#endif
 
 #endif

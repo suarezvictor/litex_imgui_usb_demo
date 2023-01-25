@@ -29,6 +29,7 @@ extern "C" {
 
 #include "usb_host.h"
 
+#ifdef USBHOST_ENABLED
 
 #ifdef DEBUG_ALL
 extern volatile uint8_t received_NRZI_buffer_bytesCnt;
@@ -93,7 +94,7 @@ void usbh_on_detect( uint8_t usbNum, void * dev )
       printf("HID MOUSE DETECTED\n");
   }
 }
-
+#endif //USBHOST_ENABLED
 
 extern "C" void loop();
 extern "C" void setup();
@@ -106,27 +107,38 @@ uint64_t t0;
 void setup()
 {
   ui_init();
-/*
+
+#ifndef USBHOST_USE_IMGUI
   for(;;)
   {
-    static uint32_t color = 0;
+    static uint32_t color = -1;
+    static uint8_t x = 0, y = 0;
+  	//printf("fill rect test %d, %d, color 0x%08X\n", x, y, color);
+
     //quarter frame 25600 times: 68s/60s single/double pixel DMA (about 94FPS-106FPS full frame)
-    fb_fillrect(1, 1, FB_WIDTH/2, FB_HEIGHT/2, color);
-    color += 0x010101;
+    fb_clear();
+    fb_fillrect(x, y, x+FB_WIDTH/2, y+FB_HEIGHT/2, color);
     fb_swap_buffers();
+
+    x += 10; y += 5;
+    color -= 0x011843;
   }
- */ 
+#endif
+
+#ifdef USBHOST_ENABLED
   static const int DM_P0 = 12; //D-
   static const int DP_P0 = 13; //D+
   static const int DP_P1 = 14; //D+
   static const int DM_P1 = 15; //D-
   usbh_pins_init(DP_P0, DM_P0, DP_P1, DM_P1, USBH_QUEUE_SIZE);
-  //printf("setup done\n");
+#endif
 
+#ifdef I2S_ENABLED
   audio_init();
-
+#endif
   
   t0 = micros();
+  printf("Setup done\n");
 }
 
 
@@ -136,7 +148,9 @@ void loop()
   float dt = int64_t(t1-t0)*1.e-6;
   t0 = t1;
 
+#ifdef USBHOST_ENABLED
   usbh_hid_poll(dt); //may call events
+#endif
   do_ui(dt);
 
   static int frame = 0;
@@ -264,6 +278,7 @@ void ui_init()
   fb_init();
   fb_set_dual_buffering(1);
 
+#ifdef USBHOST_USE_IMGUI
     printf("Initializing ImGui at %dx%d...\n", VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES);
     IMGUI_CHECKVERSION();
     ImGui::SetAllocatorFunctions(custom_malloc, custom_free, nullptr);
@@ -281,11 +296,12 @@ void ui_init()
         io.KeyMap[imkey] = key; //setup keymap
       }
     }
-
+#ifdef LITEX_SIMUATION
     imgui_sw::bind_imgui_painting();
+    printf("(this may take a while until all font glyphs are renderd)\n");
+#endif
     imgui_sw::make_style_fast();
-
-    printf("Starting ImGui...\n");
+#endif
 }
 
 void* operator new(size_t size) {

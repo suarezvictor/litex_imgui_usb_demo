@@ -74,7 +74,9 @@ void fb_off(void) {
 
 
 int fb_init(void) {
-    fb_off();
+#ifndef LITEX_SIMULATION
+    fb_off(); //simulation needs the video always on to determine resolution
+#endif
     fb_set_read_page(FB_PAGE1);
     fb_set_write_page(FB_PAGE1);
     fb_clear();
@@ -748,8 +750,10 @@ void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, floa
 			else              t2x += signx2;
 		}
 	next2:
-		if(minx>t1x) minx=t1x; if(minx>t2x) minx=t2x;
-		if(maxx<t1x) maxx=t1x; if(maxx<t2x) maxx=t2x;
+		if(minx>t1x) minx=t1x;
+		if(minx>t2x) minx=t2x;
+		if(maxx<t1x) maxx=t1x;
+		if(maxx<t2x) maxx=t2x;
 	   	fb_horizline(minx, maxx, y, c);    // Draw line from min to max points found on the y
 		// Now increase y
 		if(!changed1) t1x += signx1;
@@ -803,8 +807,10 @@ void fb_filltriangle(float v0x, float v0y, float v1x, float v1y, float v2x, floa
 		}	   	   
 	next4:
 
-		if(minx>t1x) minx=t1x; if(minx>t2x) minx=t2x;
-		if(maxx<t1x) maxx=t1x; if(maxx<t2x) maxx=t2x;
+		if(minx>t1x) minx=t1x;
+		if(minx>t2x) minx=t2x;
+		if(maxx<t1x) maxx=t1x;
+		if(maxx<t2x) maxx=t2x;
 	   	fb_horizline(minx, maxx, y, c);    // Draw line from min to max points found on the y
 		// Now increase y
 		if(!changed1) t1x += signx1;

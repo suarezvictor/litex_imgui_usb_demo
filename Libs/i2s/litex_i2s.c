@@ -2,6 +2,8 @@
 // License: BSD-2-Clause
 
 #include "litex_i2s.h"
+
+#ifdef I2S_ENABLED
 #include "irq.h"
 
 void i2s_tx_isr(void)
@@ -36,3 +38,4 @@ void i2s_tx_stop(void)
 	irq_setmask(irq_getmask() & ~(1 << I2S_TX_INTERRUPT));
 }
 
+#endif
