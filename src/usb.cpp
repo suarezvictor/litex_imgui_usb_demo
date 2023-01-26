@@ -296,8 +296,8 @@ void ui_init()
         io.KeyMap[imkey] = key; //setup keymap
       }
     }
-#ifdef LITEX_SIMUATION
     imgui_sw::bind_imgui_painting();
+#ifdef LITEX_SIMULATION
     printf("(this may take a while until all font glyphs are renderd)\n");
 #endif
     imgui_sw::make_style_fast();
