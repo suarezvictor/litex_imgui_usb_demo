@@ -19,10 +19,11 @@ extern "C" {
 #include <stdio.h>
 
 namespace std {
+#undef min
    template <class T> inline T min(T x, T y) {
       return x<y?x:y;
    }
-
+#undef max
    template <class T> inline T max(T x, T y) {
       return x>y?x:y;
    }

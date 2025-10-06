@@ -8,6 +8,14 @@
 #define MOUSE_ACCEL_FACTOR (0.9/60) //enable mouse acceleration
 #define MOUSE_ACCEL_SMOOTH .05 //avoid jumps in speed
 
+#ifdef DEBUG_ALL
+#include <string.h> //for memcpy
+#include <stdio.h>
+extern volatile uint8_t received_NRZI_buffer_bytesCnt;
+extern uint16_t received_NRZI_buffer[];
+//extern unsigned activity_count = 0;
+#endif
+
 hid_protocol_t usbh_hid_poll(float dt)
 {
   bool updateui = true;

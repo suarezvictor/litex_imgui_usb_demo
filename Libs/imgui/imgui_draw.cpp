@@ -1,6 +1,8 @@
 // dear imgui, v1.87 WIP
 // (drawing and font code)
 
+#define LITEX_SIMULATION //FIXME: use a more specific macro
+
 /*
 
 Index of this file:
@@ -2260,7 +2262,9 @@ bool ImFontAtlas::GetMouseCursorTexData(ImGuiMouseCursor cursor_type, ImVec2* ou
 bool    ImFontAtlas::Build()
 {
     IM_ASSERT(!Locked && "Cannot modify a locked ImFontAtlas between NewFrame() and EndFrame/Render()!");
-
+#ifdef LITEX_SIMULATION
+	printf("In ImFontAtlas::Build\n");
+#endif
     // Default font is none are specified
     if (ConfigData.Size == 0)
         AddFontDefault();
@@ -2476,7 +2480,11 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             int x0, y0, x1, y1;
             const int glyph_index_in_font = stbtt_FindGlyphIndex(&src_tmp.FontInfo, src_tmp.GlyphsList[glyph_i]);
             IM_ASSERT(glyph_index_in_font != 0);
+#ifdef LITEX_SIMULATION
+			//printf("build font subpixel bitmap %d/%d, glyph %d/%d\n", src_i, src_tmp_array.Size, glyph_i, src_tmp.GlyphsList.Size);
+			//this seems not required
             stbtt_GetGlyphBitmapBoxSubpixel(&src_tmp.FontInfo, glyph_index_in_font, scale * cfg.OversampleH, scale * cfg.OversampleV, 0, 0, &x0, &y0, &x1, &y1);
+#endif
             src_tmp.Rects[glyph_i].w = (stbrp_coord)(x1 - x0 + padding + cfg.OversampleH - 1);
             src_tmp.Rects[glyph_i].h = (stbrp_coord)(y1 - y0 + padding + cfg.OversampleV - 1);
             total_surface += src_tmp.Rects[glyph_i].w * src_tmp.Rects[glyph_i].h;
@@ -2506,7 +2514,9 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
         ImFontBuildSrcData& src_tmp = src_tmp_array[src_i];
         if (src_tmp.GlyphsCount == 0)
             continue;
-
+#ifdef LITEX_SIMULATION
+		printf("pack rects %d/%d\n", src_i, src_tmp_array.Size);
+#endif
         stbrp_pack_rects((stbrp_context*)spc.pack_info, src_tmp.Rects, src_tmp.GlyphsCount);
 
         // Extend texture height and mark missing glyphs as non-packed so we won't render them.
@@ -2532,6 +2542,9 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
         if (src_tmp.GlyphsCount == 0)
             continue;
 
+#ifdef LITEX_SIMULATION
+		printf("packing font %d/%d\n", src_i, src_tmp_array.Size); //takes a while...
+#endif
         stbtt_PackFontRangesRenderIntoRects(&spc, &src_tmp.FontInfo, &src_tmp.PackRange, 1, src_tmp.Rects);
 
         // Apply multiply operator
@@ -2541,8 +2554,13 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             ImFontAtlasBuildMultiplyCalcLookupTable(multiply_table, cfg.RasterizerMultiply);
             stbrp_rect* r = &src_tmp.Rects[0];
             for (int glyph_i = 0; glyph_i < src_tmp.GlyphsCount; glyph_i++, r++)
+            {
+#ifdef LITEX_SIMULATION
+				printf("processing font %d/%d, glyph %d/%d\n", src_i, src_tmp_array.Size, glyph_i, src_tmp.GlyphsCount);
+#endif
                 if (r->was_packed)
                     ImFontAtlasBuildMultiplyRectAlpha8(multiply_table, atlas->TexPixelsAlpha8, r->x, r->y, r->w, r->h, atlas->TexWidth * 1);
+            }
         }
         src_tmp.Rects = NULL;
     }
@@ -2581,6 +2599,9 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             const stbtt_packedchar& pc = src_tmp.PackedChars[glyph_i];
             stbtt_aligned_quad q;
             float unused_x = 0.0f, unused_y = 0.0f;
+#ifdef LITEX_SIMULATION
+		printf("register glyph %d/%d\n", glyph_i, src_tmp.GlyphsCount);
+#endif
             stbtt_GetPackedQuad(src_tmp.PackedChars, atlas->TexWidth, atlas->TexHeight, glyph_i, &unused_x, &unused_y, &q, 0);
             dst_font->AddGlyph(&cfg, (ImWchar)codepoint, q.x0 + font_off_x, q.y0 + font_off_y, q.x1 + font_off_x, q.y1 + font_off_y, q.s0, q.t0, q.s1, q.t1, pc.xadvance);
         }

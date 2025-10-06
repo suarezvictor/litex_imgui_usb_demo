@@ -1,3 +1,5 @@
+//#define IMGUI_FONT_CACHING //use for fast boot using pre-generated font atlas
+
 // [DEAR IMGUI]
 // This is a slightly modified version of stb_truetype.h 1.20.
 // Mostly fixing for compiler and static analyzer warnings.
@@ -4080,6 +4082,8 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
                                     scale * spc->h_oversample,
                                     scale * spc->v_oversample,
                                     &x0,&y0,&x1,&y1);
+#ifndef IMGUI_FONT_CACHING
+			//this is quite slow
             stbtt_MakeGlyphBitmapSubpixel(info,
                                           spc->pixels + r->x + r->y*spc->stride_in_bytes,
                                           r->w - spc->h_oversample+1,
@@ -4088,17 +4092,47 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
                                           scale * spc->h_oversample,
                                           scale * spc->v_oversample,
                                           0,0,
-                                          glyph);
+                                          glyph); //this actually renders the glyph
 
-            if (spc->h_oversample > 1)
+
+            if (spc->h_oversample > 1) //default is 1
                stbtt__h_prefilter(spc->pixels + r->x + r->y*spc->stride_in_bytes,
                                   r->w, r->h, spc->stride_in_bytes,
                                   spc->h_oversample);
 
-            if (spc->v_oversample > 1)
+            if (spc->v_oversample > 1) //default is 1
                stbtt__v_prefilter(spc->pixels + r->x + r->y*spc->stride_in_bytes,
                                   r->w, r->h, spc->stride_in_bytes,
                                   spc->v_oversample);
+                                  
+			//printf("pack font into rect %d/%d, glyph %d/%d\n", i, num_ranges, j, ranges[i].num_chars);
+			printf("{"
+				".glyph = %d, "
+				".offset = %d, "
+				".scale = %f, "
+				".w = %d, "
+				".h = %d, "
+				".h_oversample = %d, "
+				".v_oversample = %d}, //stbtt_MakeGlyphBitmapSubpixel glyph %d/%d, info %p\n",
+				glyph, r->x + r->y*spc->stride_in_bytes, scale, r->w, r->h,
+				spc->h_oversample, spc->v_oversample, j, ranges[i].num_chars, info->userdata);
+
+	/*
+	example output:
+pack font into rect 0/1, glyph 6/223
+stbtt_MakeGlyphBitmapSubpixel:
+	glyph 39
+	scale 0.007812 //fixed
+	r->x 234
+	r->y 28
+	r->w 6
+	r->h 8
+	spc->stride_in_bytes 512
+	spc->h_oversample 1 //fixed
+	spc->v_oversample 1 //fixed
+	*/			
+
+#endif
 
             bc->x0       = (stbtt_int16)  r->x;
             bc->y0       = (stbtt_int16)  r->y;
@@ -4117,6 +4151,41 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
       }
    }
 
+#ifdef IMGUI_FONT_CACHING
+#include "rendered_font_default.h"
+#warning imstb font caching enabled
+assert(DEFAULT_FONT_ATLAS_WIDTH == spc->stride_in_bytes);
+assert(DEFAULT_FONT_ATLAS_WIDTH == spc->width);
+assert(spc->height*spc->stride_in_bytes == sizeof(rendered_font_default));
+memcpy(spc->pixels, &rendered_font_default[0][0], spc->height*spc->stride_in_bytes);
+printf("Using cached font atlas\n");
+#else
+/*
+struct stbtt_pack_context {
+   void *user_allocator_context;
+   void *pack_info;
+   int   width;
+   int   height;
+   int   stride_in_bytes;
+   int   padding;
+   int   skip_missing;
+   unsigned int   h_oversample, v_oversample;
+   unsigned char *pixels;
+   void  *nodes;
+};
+*/
+#ifdef LITEX_SIMULATION
+   for(int y = 0; y < spc->height; ++y)
+   {
+     printf("{");
+     for(int x = 0; x < spc->width; ++x)
+     {
+       printf("0x%02x, ", spc->pixels[x + y*spc->stride_in_bytes]);
+     }
+     printf("}, //y = %d, width %d\n", y, spc->width);
+   }
+#endif
+#endif
    // restore original values
    spc->h_oversample = old_h_over;
    spc->v_oversample = old_v_over;

@@ -1,6 +1,9 @@
 #ifndef USB_HOST_H
 #define USB_HOST_H
 
+#define USBHOST_GPIO litegpio0 //required by LiteX implementation
+//#define DEBUG_ALL
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -111,7 +114,6 @@ typedef xQueueHandle hal_queue_handle_t;
 #ifdef USBHOST_GPIO
 #define USBHOST_ENABLED
 
-#define USBHOST_GPIO litegpio0
 #define hal_gpio_set_direction(pin, output) if(output) litegpio_mode_output(USBHOST_GPIO, pin); else litegpio_mode_input(USBHOST_GPIO, pin)
 #define hal_gpio_set_level(pin, level) litegpio_write(USBHOST_GPIO, pin, level)
 #define hal_gpio_read(pin) litegpio_read(USBHOST_GPIO, pin)
@@ -190,8 +192,8 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 // any number less 127, but no zero
 #define  ASSIGNED_USB_ADDRESS    3
 
-void FAST_CODE printState(void);
-void FAST_CODE usb_process(void);
+void /*FAST_CODE*/ printState(void);
+void /*FAST_CODE*/ usb_process(void);
 hid_protocol_t usb_get_hid_proto(int usbNum);
 typedef void (*onusbmesscb_t)(uint8_t src,uint8_t len,uint8_t *data);
 void set_usb_mess_cb( onusbmesscb_t onUSBMessCb );
@@ -202,12 +204,8 @@ void set_ondetect_cb( ondetectcb_t onDetectCB );
 typedef void(*onledblinkcb_t)(int on_off);
 void set_onled_blink_cb( onledblinkcb_t cb );
 
-#define  NUM_USB 4
+#define  NUM_USB 2
 
-void initStates( int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3);
-void setDelay(uint16_t ticks);
-uint8_t usbGetFlags(int _usb_num);
-void usbSetFlags(int _usb_num,uint8_t flags);
 
 
 typedef struct
@@ -368,7 +366,6 @@ typedef struct
 #define USBH_QUEUE_SIZE 100
 
 extern hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
-extern void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len);
 void usbh_init(usb_pins_config_t *pconf, USBMessage *qb, size_t qb_size); //internal function, called by usbh_pins_init
 void usbh_pins_init(int DP_P0, int DM_P0, int DP_P1, int DM_P1, int queue_size);
 

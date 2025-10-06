@@ -61,7 +61,7 @@ void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t ti
 
 #ifdef USE_TUSB_FIFO
 
-hal_queue_handle_t FAST_CODE hal_queue_create(size_t n, size_t sz, void *buffer)
+hal_queue_handle_t /*FAST_CODE*/ hal_queue_create(size_t n, size_t sz, void *buffer)
 {
   tu_fifo_t f;
   memset(&f, 0, sizeof(f));
@@ -452,8 +452,8 @@ typedef struct
 } sUsbContStruct;
 
 sUsbContStruct FAST_DATA *current;
-void FAST_CODE usb_disable_current(void) { current->isValid = 0; }
-
+static void /*FAST_CODE*/ usb_disable_current(void) { current->isValid = 0; }
+#if 0
 void FAST_CODE parseImmed(sUsbContStruct * pcurrent)
 {
   static FAST_DATA sCfgDesc      cfg;
@@ -495,6 +495,7 @@ void FAST_CODE parseImmed(sUsbContStruct * pcurrent)
     pos+=len;
   }
 }
+#endif
 
 #ifdef WR_SIMULTA
 uint32_t FAST_DATA sndA[4]  = {0,0,0,0};
@@ -538,7 +539,7 @@ static inline uint8_t decoded_receive_buffer_size(void)
 
 
 
-uint8_t FAST_CODE cal5(void)
+static uint8_t FAST_CODE cal5(void)
 {
   uint8_t   crcb;
   uint8_t   rem;
@@ -559,7 +560,7 @@ uint8_t FAST_CODE cal5(void)
 
 
 
-uint32_t FAST_CODE cal16(void)
+static uint32_t FAST_CODE cal16(void)
 {
   uint32_t   crcb;
   uint32_t   rem;
@@ -586,7 +587,7 @@ static inline void seB(int bit)
 
 
 
-void FAST_CODE pu_MSB(uint16_t msg,int N)
+static void FAST_CODE pu_MSB(uint16_t msg,int N)
 {
   for(int k=0;k<N;k++) {
     seB(msg&(1<<(N-1-k))?1:0);
@@ -595,7 +596,7 @@ void FAST_CODE pu_MSB(uint16_t msg,int N)
 
 
 
-void FAST_CODE pu_LSB(uint16_t msg,int N)
+static void FAST_CODE pu_LSB(uint16_t msg,int N)
 {
   for(int k=0;k<N;k++) {
     seB(msg&(1<<(k))?1:0);
@@ -604,7 +605,7 @@ void FAST_CODE pu_LSB(uint16_t msg,int N)
 
 
 
-void FAST_CODE repack(void)
+static void FAST_CODE repack(void)
 {
   int last = USB_LS_J;
   int cntOnes = 0;
@@ -649,7 +650,7 @@ void FAST_CODE repack(void)
 
 
 
-uint8_t FAST_CODE rev8(uint8_t j)
+static uint8_t FAST_CODE rev8(uint8_t j)
 {
   uint8_t res = 0;
   for(int i=0;i<8;i++) {
@@ -661,7 +662,7 @@ uint8_t FAST_CODE rev8(uint8_t j)
 
 
 
-uint16_t FAST_CODE rev16(uint16_t j)
+static uint16_t FAST_CODE rev16(uint16_t j)
 {
   uint16_t res = 0;
   for(int i=0;i<16;i++) {
@@ -674,15 +675,14 @@ uint16_t FAST_CODE rev16(uint16_t j)
 
 
 #ifdef DEBUG_ALL
-uint16_t debug_buff[0x100];
+static uint16_t debug_buff[0x100];
 #endif
 
 
 void FAST_DATA (*onLedBlinkCB)(int on_off) = usbh_on_activitystatus;
 #define NOTIFY() if(onLedBlinkCB) onLedBlinkCB(1)
 
-
-int FAST_CODE parse_received_NRZI_buffer(void)
+static int /*FAST_CODE*/ parse_received_NRZI_buffer(void)
 {
 
   if(!received_NRZI_buffer_bytesCnt) return 0;
@@ -783,7 +783,7 @@ int FAST_CODE parse_received_NRZI_buffer(void)
 
 
 //#define WR_SIMULTA
-void FAST_CODE sendOnly(void)
+static void FAST_CODE sendOnly(void)
 {
   SET_O(DP_PIN, DM_PIN);
   #ifdef WR_SIMULTA
@@ -848,7 +848,7 @@ void FAST_CODE sendOnly(void)
   SET_I(DP_PIN, DM_PIN);
 }
 
-void FAST_CODE sendRecieveNParse(void)
+static void FAST_CODE sendRecieveNParse(void)
 {
   register uint32_t R3;
   register uint16_t *STORE = received_NRZI_buffer;
@@ -880,7 +880,7 @@ START:
 
 
 
-int FAST_CODE sendRecieve(void)
+static int FAST_CODE sendRecieve(void)
 {
   sendRecieveNParse();
   return parse_received_NRZI_buffer();
@@ -888,7 +888,7 @@ int FAST_CODE sendRecieve(void)
 
 
 
-void FAST_CODE SOF(void)
+static void FAST_CODE SOF(void)
 {
   if(1) {
     repack();
@@ -898,7 +898,7 @@ void FAST_CODE SOF(void)
 
 
 
-void FAST_CODE pu_Addr(uint8_t cmd,uint8_t addr,uint8_t eop)
+static void FAST_CODE pu_Addr(uint8_t cmd,uint8_t addr,uint8_t eop)
 {
   pu_MSB(T_START,8);
   pu_MSB(cmd,8);//setup
@@ -910,7 +910,7 @@ void FAST_CODE pu_Addr(uint8_t cmd,uint8_t addr,uint8_t eop)
 
 
 
-void FAST_CODE pu_ShortCmd(uint8_t cmd)
+static void FAST_CODE pu_ShortCmd(uint8_t cmd)
 {
   pu_MSB(T_START,8);
   pu_MSB(cmd,8);//setup
@@ -920,7 +920,7 @@ void FAST_CODE pu_ShortCmd(uint8_t cmd)
 
 
 
-void FAST_CODE pu_Cmd(uint8_t cmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen)
+static void FAST_CODE pu_Cmd(uint8_t cmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen)
 {
   pu_MSB(T_START,8);
   pu_MSB(cmd,8);//setup
@@ -938,7 +938,7 @@ void FAST_CODE pu_Cmd(uint8_t cmd,uint8_t bmRequestType, uint8_t bmRequest,uint1
 uint8_t FAST_DATA ACK_BUFF[0x20];
 int FAST_DATA ACK_BUFF_CNT = 0;
 
-void FAST_CODE ACK(void)
+static void FAST_CODE ACK(void)
 {
   transmit_NRZI_buffer_cnt =0;
   if(ACK_BUFF_CNT==0) {
@@ -955,7 +955,7 @@ void FAST_CODE ACK(void)
 }
 
 
-void FAST_CODE timerCallBack(void)
+static void /*FAST_CODE*/ timerCallBack(void)
 {
   decoded_receive_buffer_clear();
 
@@ -1227,7 +1227,7 @@ void FAST_CODE timerCallBack(void)
 
 
 
-void FAST_CODE Request( uint8_t cmd, uint8_t addr, uint8_t eop, uint8_t dataCmd,uint8_t bmRequestType, uint8_t bmRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLen, uint16_t waitForBytes)
+static void /*FAST_CODE*/ Request( uint8_t cmd, uint8_t addr, uint8_t eop, uint8_t dataCmd,uint8_t bmRequestType, uint8_t bmRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLen, uint16_t waitForBytes)
 {
   current->rq.cmd  = cmd;
   current->rq.addr = addr;
@@ -1247,7 +1247,7 @@ void FAST_CODE Request( uint8_t cmd, uint8_t addr, uint8_t eop, uint8_t dataCmd,
 
 
 
-void FAST_CODE RequestSend(uint8_t cmd,   uint8_t addr,uint8_t eop, uint8_t  dataCmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen,uint16_t transmitL1Bytes,uint8_t* data)
+static void /*FAST_CODE*/ RequestSend(uint8_t cmd,   uint8_t addr,uint8_t eop, uint8_t  dataCmd,uint8_t bmRequestType, uint8_t bmRequest,uint16_t wValue,uint16_t wIndex,uint16_t wLen,uint16_t transmitL1Bytes,uint8_t* data)
 {
   current->rq.cmd  = cmd;
   current->rq.addr = addr;
@@ -1268,7 +1268,7 @@ void FAST_CODE RequestSend(uint8_t cmd,   uint8_t addr,uint8_t eop, uint8_t  dat
 }
 
 
-void FAST_CODE RequestIn(uint8_t cmd,   uint8_t addr,uint8_t eop,uint16_t waitForBytes)
+static void /*FAST_CODE*/ RequestIn(uint8_t cmd,   uint8_t addr,uint8_t eop,uint16_t waitForBytes)
 {
   current->rq.cmd  = cmd;
   current->rq.addr = addr;
@@ -1280,15 +1280,15 @@ void FAST_CODE RequestIn(uint8_t cmd,   uint8_t addr,uint8_t eop,uint16_t waitFo
 }
 
 
-void FAST_DATA (*usbMess)(uint8_t src,uint8_t len,uint8_t *data) = NULL;
+static void FAST_DATA (*usbMess)(uint8_t src,uint8_t len,uint8_t *data) = NULL;
 
-void FAST_CODE set_usb_mess_cb( onusbmesscb_t onUSBMessCb )
+void /*FAST_CODE*/ set_usb_mess_cb( onusbmesscb_t onUSBMessCb )
 {
   usbMess = onUSBMessCb;
 }
 
 
-void FAST_DATA (*onDetectCB)(uint8_t usbNum, void *device) = NULL;
+static void FAST_DATA (*onDetectCB)(uint8_t usbNum, void *device) = NULL;
 
 void set_ondetect_cb( ondetectcb_t cb )
 {
@@ -1296,50 +1296,50 @@ void set_ondetect_cb( ondetectcb_t cb )
 }
 
 
-void FAST_CODE set_onled_blink_cb( onledblinkcb_t cb )
+void /*FAST_CODE*/ set_onled_blink_cb( onledblinkcb_t cb )
 {
   onLedBlinkCB = cb;
 }
 
 
-void FAST_CODE fsm_Mashine(void)
+static void /*FAST_CODE*/ fsm_Mashine(void)
 {
   if(!current->bComplete) return;
   current->bComplete = 0;
 
-  if(current->fsm_state == 0) {
-    current->epCount = 0;
+  if(current->fsm_state == (enum DeviceState) 0) {
+    current->epCount = (enum DeviceState)0;
     current->cb_Cmd     = CB_CHECK;
-    current->fsm_state   = 1;
+    current->fsm_state   = (enum DeviceState)1;
   }
-  if(current->fsm_state == 1) {
+  if(current->fsm_state == (enum DeviceState) 1) {
     //NOTIFY(); //passes here
     if(current->wires_last_state==M_ONE) { // if(1)
         //NOTIFY(); //passes here
 
       current->cmdTimeOut = 100+current->selfNum*73;
       current->cb_Cmd      = CB_WAIT0;
-      current->fsm_state   = 2;
+      current->fsm_state   = (enum DeviceState) 2;
     } else {
-      current->fsm_state   = 0;
+      current->fsm_state   = (enum DeviceState) 0;
       current->cb_Cmd      = CB_CHECK;
     }
-  } else if(current->fsm_state==2) {
+  } else if(current->fsm_state==(enum DeviceState) 2) {
     //NOTIFY(); //passes here
     current->cb_Cmd       = CB_RESET;
-    current->fsm_state    = 3;
-  } else if(current->fsm_state==3) {
+    current->fsm_state    = (enum DeviceState)3;
+  } else if(current->fsm_state==(enum DeviceState) 3) {
     //NOTIFY(); //passes here
     current->cb_Cmd       = CB_POWER;
     #ifdef TEST
-      current->fsm_state    =  3;
+      current->fsm_state    =  (enum DeviceState) 3;
     #else
-      current->fsm_state    =  4;
+      current->fsm_state    =  (enum DeviceState) 4;
     #endif
-  } else if(current->fsm_state==4) {
+  } else if(current->fsm_state==(enum DeviceState) 4) {
     Request(T_SETUP,ZERO_USB_ADDRESS,0b0000,T_DATA0,0x80,0x6,0x0100,0x0000,0x0012,0x0012);
-    current->fsm_state    = 5;
-  } else if(current->fsm_state==5) {
+    current->fsm_state    = (enum DeviceState) 5;
+  } else if(current->fsm_state==(enum DeviceState) 5) {
     //NOTIFY(); //passes here
     if(current->acc_decoded_resp_counter==0x12) {
       memcpy(&current->desc,current->acc_decoded_resp,0x12);
@@ -1347,81 +1347,81 @@ void FAST_CODE fsm_Mashine(void)
     } else {
     //NOTIFY(); //passes here
       if(current->numb_reps_errors_allowed<=0) {
-        current->fsm_state    =  0;
+        current->fsm_state    =  (enum DeviceState) 0;
         return;
       }
     }
 
     Request(T_SETUP,ZERO_USB_ADDRESS,0b0000,T_DATA0,0x00,0x5,0x0000+ASSIGNED_USB_ADDRESS,0x0000,0x0000,0x0000);
-    current->fsm_state    =  6;
+    current->fsm_state    =  (enum DeviceState) 6;
 
-  } else if(current->fsm_state==6) {
+  } else if(current->fsm_state==(enum DeviceState) 6) {
     current->cmdTimeOut = 5;
     current->cb_Cmd       = CB_WAIT1;
-    current->fsm_state    = 7;
-  } else if(current->fsm_state==7) {
+    current->fsm_state    = (enum DeviceState)7;
+  } else if(current->fsm_state==(enum DeviceState) 7) {
     Request(T_SETUP,ASSIGNED_USB_ADDRESS,0b0000,T_DATA0,0x80,0x6,0x0200,0x0000,0x0009,0x0009);
-    current->fsm_state    = 8;
-  } else if(current->fsm_state==8) {
+    current->fsm_state    = (enum DeviceState)8;
+  } else if(current->fsm_state==(enum DeviceState) 8) {
     if(current->acc_decoded_resp_counter==0x9) {
       memcpy(&current->cfg,current->acc_decoded_resp,0x9);
       current->ufPrintDesc |= 2;
       Request(T_SETUP,ASSIGNED_USB_ADDRESS,0b0000,T_DATA0,0x80,0x6,0x0200,0x0000,current->cfg.wLength,current->cfg.wLength);
-      current->fsm_state    = 9;
+      current->fsm_state    = (enum DeviceState) 9;
     } else {
-      current->fsm_state    = 0;
+      current->fsm_state    = (enum DeviceState) 0;
       return;
     }
-  } else if(current->fsm_state==9) {
+  } else if(current->fsm_state==(enum DeviceState) 9) {
     if(current->acc_decoded_resp_counter==current->cfg.wLength) {
       current->ufPrintDesc |= 4;
       current->descrBufferLen = current->acc_decoded_resp_counter;
       memcpy(current->descrBuffer,current->acc_decoded_resp,current->descrBufferLen);
-      current->fsm_state    = 97;
+      current->fsm_state    = (enum DeviceState) 97;
     } else {
       current->cmdTimeOut = 5;
       current->cb_Cmd       = CB_WAIT1;
-      current->fsm_state    = 7;
+      current->fsm_state    = (enum DeviceState) 7;
     }
-  } else if(current->fsm_state==97) {
+  } else if(current->fsm_state==(enum DeviceState) 97) {
     Request(T_SETUP,ASSIGNED_USB_ADDRESS,0b0000,T_DATA0,0x00,0x9,0x0001,0x0000,0x0000,0x0000);
-     current->fsm_state    = 98;
-  } else if(current->fsm_state==98) {
+     current->fsm_state    = (enum DeviceState) 98;
+  } else if(current->fsm_state==(enum DeviceState) 98) {
     // config interfaces??
     Request(T_SETUP,ASSIGNED_USB_ADDRESS,0b0000,T_DATA0,0x21,0xa,0x0000,0x0000,0x0000,0x0000);
-    current->fsm_state    = 99;
-  } else if(current->fsm_state==99) {
+    current->fsm_state    = (enum DeviceState) 99;
+  } else if(current->fsm_state==(enum DeviceState) 99) {
     if(current->flags_new!=current->flags) {
       current->flags = current->flags_new;
       RequestSend(T_SETUP,ASSIGNED_USB_ADDRESS,0b0000,T_DATA0,0x21,0x9,0x0200,0x0000,0x0001,0x0001,&current->flags);
     }
-    current->fsm_state    = 100;
-  } else if(current->fsm_state==100) {
+    current->fsm_state    = (enum DeviceState) 100;
+  } else if(current->fsm_state==(enum DeviceState) 100) {
      if( onLedBlinkCB ) onLedBlinkCB(0);
      RequestIn(T_IN,  ASSIGNED_USB_ADDRESS,1,8);
-     current->fsm_state    = 101;
-  } else if(current->fsm_state==101) {
+     current->fsm_state    = (enum DeviceState) 101;
+  } else if(current->fsm_state==(enum DeviceState) 101) {
     if(current->acc_decoded_resp_counter>=1) {
       usbMess(current->selfNum*NUM_USB+0,current->acc_decoded_resp_counter,current->acc_decoded_resp);
       if( onLedBlinkCB ) onLedBlinkCB(1);
     }
     if(current->epCount>=2) {
       RequestIn(T_IN,  ASSIGNED_USB_ADDRESS,2,8);
-      current->fsm_state    = 102;
+      current->fsm_state    = (enum DeviceState) 102;
     } else {
       current->cmdTimeOut = 3;
       current->cb_Cmd        = CB_WAIT1;
-      current->fsm_state      = 104;
+      current->fsm_state      = (enum DeviceState) 104;
      }
-  } else if(current->fsm_state==102) {
+  } else if(current->fsm_state==(enum DeviceState) 102) {
      if(current->acc_decoded_resp_counter>=1) {
        usbMess(current->selfNum*NUM_USB+1,current->acc_decoded_resp_counter,current->acc_decoded_resp);
        if( onLedBlinkCB ) onLedBlinkCB(1);
      }
     current->cmdTimeOut = 2;
     current->cb_Cmd        = CB_WAIT1;
-    current->fsm_state      = 104;
-  } else if (current->fsm_state==104) {
+    current->fsm_state      = (enum DeviceState) 104;
+  } else if (current->fsm_state==(enum DeviceState) 104) {
     current->cmdTimeOut = 4;
     current->cb_Cmd        = CB_WAIT1;
   #ifdef  DEBUG_REPEAT
@@ -1432,26 +1432,26 @@ void FAST_CODE fsm_Mashine(void)
     if(current->wires_last_state!=M_ONE)
   #endif
     {
-      current->fsm_state      = 0;
+      current->fsm_state      = (enum DeviceState) 0;
       return ;
     }
-    current->fsm_state      = 99;
+    current->fsm_state      = (enum DeviceState) 99;
   } else {
     current->cmdTimeOut = 2;
     current->cb_Cmd        = CB_WAIT1;
-    current->fsm_state      = 0;
+    current->fsm_state      =(enum DeviceState)  0;
   }
 }
 
 
 
-void FAST_CODE setPins(int DPPin,int DMPin)
+void /*FAST_CODE*/ setPins(int DPPin,int DMPin)
 {
   DP_PIN = DPPin;
   DM_PIN = DMPin;
   int diff = DPPin - DMPin;
-  if(abs(diff)>7) {
-    printf("PIN DIFFERENCE MUST BE LESS 8!\n");
+  if(abs(diff)>=8) {
+    printf("PIN DIFFERENCE MUST BE LESS than 8!\n");
     return;
   }
   int MIN_PIN = (DPPin<DMPin)?DPPin:DMPin;
@@ -1467,8 +1467,7 @@ void FAST_CODE setPins(int DPPin,int DMPin)
 }
 
 
-sUsbContStruct FAST_DATA current_usb[NUM_USB];
-
+static sUsbContStruct /*FAST_DATA*/ current_usb[NUM_USB]; //this array is too big for SRAM
 
 static inline int checkPins(int dp,int dm)
 {
@@ -1490,7 +1489,7 @@ int64_t get_system_time_us(void)
 }
 */
 
-float FAST_CODE testDelay6(float freq_MHz)
+static float FAST_CODE testDelay6(float freq_MHz)
 {
   // 6 bits must take 4.0 uSec
   #define SEND_BITS 120
@@ -1542,7 +1541,7 @@ void FAST_CODE gpio_test(void) //test with improved timing
     }
 }
 
-void FAST_CODE initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
+static void /*FAST_CODE*/ initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP3,int DM3)
 {
   decoded_receive_buffer_head = 0;
   decoded_receive_buffer_tail = 0;
@@ -1576,7 +1575,7 @@ void FAST_CODE initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP
       current->cmdTimeOut = 0;
       current->ufPrintDesc =0;
       current->cb_Cmd     = CB_CHECK;
-      current->fsm_state  = 0;
+      current->fsm_state  = (enum DeviceState) 0;
       current->wires_last_state = 0;
       current->counterNAck = 0;
       current->counterAck = 0;
@@ -1624,13 +1623,14 @@ void FAST_CODE initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP
         uTime *= TIMING_PREC;
 #endif
 #else
-        int  uTime = freq_mhz*8;
+        //int  uTime = freq_mhz*8;
+        int  uTime = freq_mhz*TIMING_PREC; //TODO: tested on ECP5, recheck on Artix
 #endif
 #endif
         int  dTime = 0;
         printf("cpu freq = %d MHz\n", freq_mhz);
         TM_OUT = freq_mhz/2;
-        // 8  - func divided clock to 8, 1.5 - MHz USB LS //NOTE: N=8 noy anymore constant, depends on clock frequency
+        // 8  - func divided clock to 8, 1.5 - MHz USB LS //NOTE: N=8 not anymore a constant, depends on clock frequency
         TIME_MULT = (int)(TIME_SCALE*(1.5*(1<<TIME_FACTOR_BITS))/freq_mhz+0.5); //this fixes the timing bug!!
         printf("TIME_MULT = %d \n",TIME_MULT);
 
@@ -1673,7 +1673,7 @@ void FAST_CODE initStates(int DP0,int DM0,int DP1,int DM1,int DP2,int DM2,int DP
 
 
 
-void FAST_CODE usbSetFlags(int _usb_num,uint8_t flags)
+static void /*FAST_CODE*/ usbSetFlags(int _usb_num,uint8_t flags)
 {
   if(_usb_num<NUM_USB&&_usb_num>=0) {
     current_usb[_usb_num].flags_new =  flags;
@@ -1682,7 +1682,7 @@ void FAST_CODE usbSetFlags(int _usb_num,uint8_t flags)
 
 
 
-uint8_t FAST_CODE usbGetFlags(int _usb_num)
+static uint8_t /*FAST_CODE*/ usbGetFlags(int _usb_num)
 {
   if(_usb_num<NUM_USB&&_usb_num>=0) {
     return current_usb[_usb_num].flags;
@@ -1692,7 +1692,7 @@ uint8_t FAST_CODE usbGetFlags(int _usb_num)
 
 
 
-void FAST_CODE usb_process(void)
+void /*FAST_CODE*/ usb_process(void)
 {
 #ifdef ESP32
   #if CONFIG_IDF_TARGET_ESP32C3 || defined ESP32C3
@@ -1729,7 +1729,7 @@ hid_protocol_t usb_get_hid_proto(int usbNum)
         {
           const sIntfDesc *sIntf = (const sIntfDesc*) &pcurrent->descrBuffer[pos];
           if(sIntf->iClass == USB_HID_INTF_CLASS)
-            return sIntf->iProto;
+            return (hid_protocol_t) sIntf->iProto;
         }
       }
       pos+=len;
@@ -1738,7 +1738,7 @@ hid_protocol_t usb_get_hid_proto(int usbNum)
   return USB_HID_PROTO_NONE;
 }
 
-void FAST_CODE printState(void)
+void printState(void)
 {
   static int FAST_DATA cntl = 0;
   cntl++;
@@ -1861,7 +1861,7 @@ void FAST_CODE printState(void)
 ///////////////////////////////
 //USB Host C API
 
-void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len) = usbh_on_hiddata_log;
+static void (*printDataCB)(uint8_t usbNum, uint8_t byte_depth, uint8_t* data, uint8_t data_len) = usbh_on_hiddata_log;
 hid_protocol_t hid_types[NUM_USB]; //TODO: move to implementation
 
 

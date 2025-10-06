@@ -3,12 +3,12 @@
 // Some code adapted from https://github.com/arduino-libraries/USBHost/blob/master/src/hidboot.cpp, licensed under GPL 2, (C) Circuits At Home, LTD
 
 //Current command for SoC generation:
+//$ ./gsd_orangecrab.py --timer-uptime --uart-baudrate=960000 --with-pmod-gpio --integrated-sram-size 8192 --cpu-variant=full --build
 //$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=200e6 --cpu-variant=full --build
 //for DVI 800x600@50Hz: 
 //$ ./digilent_arty.py --timer-uptime --uart-baudrate=1000000 --with-pmod-gpio --integrated-sram-size 32768 --sys-clk-freq=166666666 --cpu-type=vexriscv --cpu-variant=full --build
 
 
-//#define DEBUG_ALL
 #define USBHOST_USE_IMGUI
 
 
@@ -32,11 +32,12 @@ extern "C" {
 #ifdef USBHOST_ENABLED
 
 #ifdef DEBUG_ALL
-extern volatile uint8_t received_NRZI_buffer_bytesCnt;
-extern uint16_t received_NRZI_buffer[];
+extern "C" volatile uint8_t received_NRZI_buffer_bytesCnt;
+extern "C" uint16_t received_NRZI_buffer[];
+extern unsigned activity_count = 0;
 #endif
 
-unsigned activity_count = 0;
+
 void usbh_on_activitystatus(int on_off)
 {
 #ifdef BLINK_GPIO
@@ -103,27 +104,20 @@ void do_ui(float dt);
 
 extern "C" void audio_init(void);
 
-uint64_t t0;
+static uint64_t t0;
 void setup()
 {
-  ui_init();
 
-#ifndef USBHOST_USE_IMGUI
-  for(;;)
+#if 0
+  USBHOST_GPIO->OE = 0x000003FF; //all outputs
+  for(int i = 0; ; ++i)
   {
-    static uint32_t color = -1;
-    static uint8_t x = 0, y = 0;
-  	//printf("fill rect test %d, %d, color 0x%08X\n", x, y, color);
-
-    //quarter frame 25600 times: 68s/60s single/double pixel DMA (about 94FPS-106FPS full frame)
-    fb_clear();
-    fb_fillrect(x, y, x+FB_WIDTH/2, y+FB_HEIGHT/2, color);
-    fb_swap_buffers();
-
-    x += 10; y += 5;
-    color -= 0x011843;
+    USBHOST_GPIO->OUT = i;
+    printf("GPIO 0x%08X\n", USBHOST_GPIO->IN);
   }
 #endif
+
+  ui_init();
 
 #ifdef USBHOST_ENABLED
   static const int DM_P0 = 12; //D-
@@ -151,7 +145,24 @@ void loop()
 #ifdef USBHOST_ENABLED
   usbh_hid_poll(dt); //may call events
 #endif
+
+#ifndef USBHOST_USE_IMGUI
+  {
+    static uint32_t color = -1;
+    static uint8_t x = 0, y = 0;
+  	//printf("fill rect test %d, %d, color 0x%08X\n", x, y, color);
+
+    //quarter frame 25600 times: 68s/60s single/double pixel DMA (about 94FPS-106FPS full frame)
+    fb_clear();
+    fb_fillrect(x, y, x+FB_WIDTH/2, y+FB_HEIGHT/2, color);
+    fb_swap_buffers();
+
+    x += 10; y += 5;
+    color -= 0x011843;
+  }
+#else
   do_ui(dt);
+#endif
 
   static int frame = 0;
   if(!(++frame % 60))
@@ -164,7 +175,7 @@ void loop()
 extern "C" void litex_timer_setup(uint32_t cycles, timer_isr_t handler);
 void hal_timer_setup(timer_idx_t timer_num, uint32_t alarm_value, timer_isr_t timer_isr)
 {
-  printf("in hal_timer_setup at 0x%p\n", hal_timer_setup);
+  //printf("in hal_timer_setup at 0x%p\n", hal_timer_setup);
   litex_timer_setup(alarm_value, timer_isr);
   //hal_delay(50); //DEBUG ONLY: make room to generate some interrupts
 }
@@ -297,9 +308,10 @@ void ui_init()
       }
     }
     imgui_sw::bind_imgui_painting();
-#ifdef LITEX_SIMULATION
+#if defined(LITEX_SIMULATION) && !defined(IMGUI_FONT_CACHING)
     printf("(this may take a while until all font glyphs are renderd)\n");
 #endif
+    imgui_sw::bind_imgui_painting();
     imgui_sw::make_style_fast();
 #endif
 }
